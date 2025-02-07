@@ -25,6 +25,8 @@
             start-placeholder="开始日期"
             end-placeholder="结束日期"
             :shortcuts="dateShortcuts"
+            :clearable="true"
+            value-format="YYYY-MM-DD"
             @change="handleDateChange"
           />
         </div>
@@ -32,85 +34,85 @@
 
       <!-- 主要内容区域 -->
       <div class="dashboard-content">
-        <!-- 核心指标卡片 -->
-        <section class="section-core-metrics">
-          <h2 class="section-title">核心指标</h2>
-          <CoreMetrics :data="trendData" />
-        </section>
+        <el-loading :full-screen="false" :element-loading-text="'加载中...'" v-if="loading" />
+        
+        <template v-else>
+          <!-- 核心指标卡片 -->
+          <section class="section-core-metrics" v-if="trendData && trendData.length > 0">
+            <h2 class="section-title">核心指标</h2>
+            <CoreMetrics :data="trendData" />
+          </section>
 
-        <!-- 趋势分析区域 -->
-        <section class="section-trends">
-          <h2 class="section-title">趋势分析</h2>
-          <div class="chart-container">
-            <TrendChart :data="filteredTrendData" />
-          </div>
-        </section>
+          <!-- 趋势分析区域 -->
+          <section class="section-trends" v-if="trendData && trendData.length > 0">
+            <h2 class="section-title">趋势分析</h2>
+            <div class="chart-container">
+              <TrendChart :data="trendData" />
+            </div>
+          </section>
 
-        <!-- 用户分布区域 -->
-        <section class="section-distribution">
-          <h2 class="section-title">用户分布</h2>
-          <div class="sort-buttons">
-            <el-button @click="sortData('name')">按名称排序</el-button>
-            <el-button @click="sortData('value')">按值排序</el-button>
-          </div>
-          <div class="distribution-grid">
-            <div class="distribution-item">
-              <h3><el-icon><Location /></el-icon> 地域分布</h3>
-              <DistributionChart :data="geoData" />
-            </div>
-            <div class="distribution-item">
-              <h3><el-icon><Cellphone /></el-icon> 设备分布</h3>
-              <DistributionChart :data="deviceData" />
-            </div>
-            <div class="distribution-item">
-              <h3><el-icon><PieChart /></el-icon> 访问来源</h3>
-              <DistributionChart :data="sourceData" />
-            </div>
-          </div>
-        </section>
-
-        <!-- 用户行为指标 -->
-        <section class="section-behavior">
-          <h2 class="section-title">用户行为</h2>
-          <div class="behavior-metrics">
-            <div class="behavior-item" v-for="metric in behaviorMetrics" :key="metric.name">
-              <el-icon>
-                <component :is="metric.icon" />
-              </el-icon>
-              <div class="metric-info">
-                <div class="metric-name">{{ metric.name }}</div>
-                <div class="metric-value">{{ metric.value }}</div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- 数据洞察 -->
-        <section class="section-insights">
-          <h2 class="section-title">数据洞察</h2>
-          <div class="insights-container">
-            <el-row :gutter="20">
-              <el-col :span="8" v-for="(insight, index) in insights" :key="index">
-                <el-card class="insight-card" :class="insight.type">
+          <!-- 添加数据洞察部分 -->
+          <section class="section-insights" v-if="trendInsights.length > 0">
+            <h2 class="section-title">数据洞察</h2>
+            <div class="insights-grid">
+              <el-card class="insight-card" v-for="(insight, index) in trendInsights" :key="index">
+                <template #header>
                   <div class="insight-header">
-                    <el-icon>
-                      <component :is="getInsightIcon(insight.type)" />
+                    <el-icon :size="20" :color="insight.type === 'positive' ? '#67C23A' : '#F56C6C'">
+                      <component :is="insight.type === 'positive' ? 'ArrowUp' : 'ArrowDown'" />
                     </el-icon>
                     <span>{{ insight.title }}</span>
                   </div>
-                  <div class="insight-content">{{ insight.message }}</div>
-                </el-card>
-              </el-col>
-            </el-row>
-          </div>
-        </section>
+                </template>
+                <div class="insight-content">
+                  {{ insight.content }}
+                </div>
+              </el-card>
+            </div>
+          </section>
+
+          <!-- 用户分布区域 -->
+          <section class="section-distribution">
+            <h2 class="section-title">用户分布</h2>
+            <div class="distribution-grid">
+              <div class="distribution-item" v-if="geoData.length > 0">
+                <h3><el-icon><Location /></el-icon> 地域分布</h3>
+                <DistributionChart :data="geoData" />
+              </div>
+              <div class="distribution-item" v-if="deviceData.length > 0">
+                <h3><el-icon><Cellphone /></el-icon> 设备分布</h3>
+                <DistributionChart :data="deviceData" />
+              </div>
+              <div class="distribution-item" v-if="sourceData.length > 0">
+                <h3><el-icon><PieChart /></el-icon> 访问来源</h3>
+                <DistributionChart :data="sourceData" />
+              </div>
+            </div>
+          </section>
+
+          <!-- 用户行为指标 -->
+          <section class="section-behavior">
+            <h2 class="section-title">用户行为</h2>
+            <div class="behavior-metrics">
+              <div class="behavior-item" v-for="metric in behaviorMetrics" :key="metric.name">
+                <el-icon>
+                  <component :is="metric.icon" />
+                </el-icon>
+                <div class="metric-info">
+                  <div class="metric-name">{{ metric.name }}</div>
+                  <div class="metric-value">{{ metric.value }}</div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </template>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch, markRaw } from 'vue'
 import { ga4Client, fetchGeoDistribution, fetchDeviceDistribution, fetchSourceDistribution, fetchTrendData } from './api/ga4'
 import { AnalyticsInsight } from './utils/analytics'
 import DataCard from './components/DataCard.vue'
@@ -131,9 +133,13 @@ import {
   Location,
   Cellphone,
   Monitor,
-  PieChart
+  PieChart,
+  ArrowUp,
+  ArrowDown
 } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 
+const loading = ref(false)
 const dateRange = ref([new Date(), new Date()])
 const dataCards = ref([])
 const userTrendData = ref([])
@@ -217,29 +223,84 @@ watch(sourceData, (newVal) => {
   console.log('来源数据更新:', newVal)
 }, { deep: true })
 
-async function fetchData() {
+const iconMap = markRaw({
+  geo: Location,
+  device: Cellphone,
+  pc: Monitor,
+  source: PieChart
+})
+
+const formatDate = (date) => {
+  if (!date) return ''
+  // 处理特殊日期
+  if (typeof date === 'string') {
+    if (date === '30daysAgo' || date === 'today') {
+      return date
+    }
+    // 如果已经是 YYYY-MM-DD 格式，直接返回
+    if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      return date
+    }
+  }
+  
+  // 处理 Date 对象
+  const d = new Date(date)
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`  // 使用 YYYY-MM-DD 格式
+}
+
+const fetchData = async (start, end) => {
+  loading.value = true
   try {
-    console.log('开始获取数据...')
-    const [geo, device, source, trend] = await Promise.all([
-      fetchGeoDistribution(),
-      fetchDeviceDistribution(),
-      fetchSourceDistribution(),
-      fetchTrendData()
+    // 打印请求参数
+    console.log('请求参数:', { start, end })
+
+    const trend = await fetchTrendData(start, end)
+    // 打印原始趋势数据
+    console.log('原始趋势数据:', trend)
+
+    if (Array.isArray(trend) && trend.length > 0) {
+      trendData.value = trend
+      // 打印处理后的趋势数据
+      console.log('处理后的趋势数据:', trendData.value)
+    } else {
+      console.warn('趋势数据无效:', trend)
+    }
+
+    const [geo, device, source] = await Promise.all([
+      fetchGeoDistribution(start, end),
+      fetchDeviceDistribution(start, end),
+      fetchSourceDistribution(start, end)
     ])
-    
-    console.log('数据获取成功:', { geo, device, source, trend })
-    
+
     geoData.value = geo
     deviceData.value = device
     sourceData.value = source
-    trendData.value = trend
-
-    const data = await ga4Client.fetchAnalyticsData();
-    updateDashboard(data)
   } catch (error) {
     console.error('获取数据失败:', error)
-    updateDashboard(null)
+    ElMessage.error('获取数据失败')
+  } finally {
+    loading.value = false
   }
+}
+
+const handleDateChange = async (val) => {
+  console.log('原始日期值:', val)
+  
+  if (!val) {
+    console.log('使用默认日期范围')
+    await fetchData('30daysAgo', 'today')
+    return
+  }
+
+  const [start, end] = val
+  const startDate = formatDate(start)
+  const endDate = formatDate(end)
+  console.log('格式化后的日期范围:', { startDate, endDate })
+  
+  await fetchData(startDate, endDate)
 }
 
 function updateDashboard(data) {
@@ -414,13 +475,6 @@ function formatPercentage(value) {
   return (Number(value) * 100).toFixed(1) + '%';
 }
 
-function formatDate(dateString) {
-  const year = dateString.substring(0, 4);
-  const month = dateString.substring(4, 6);
-  const day = dateString.substring(6, 8);
-  return `${month}-${day}`;
-}
-
 function formatDuration(seconds) {
   const totalSeconds = Math.floor(Number(seconds));
   const minutes = Math.floor(totalSeconds / 60);
@@ -444,11 +498,6 @@ function setDefaultValues() {
   ];
   userTrendData.value = [];
   pageViewData.value = [];
-}
-
-function handleDateChange() {
-  console.log('日期变更:', dateRange.value)
-  fetchData()
 }
 
 function handleChartRangeChange() {
@@ -500,17 +549,9 @@ const getInsightIcon = (type) => {
   return icons[type] || IconInfo
 }
 
-// 图标映射
-const iconMap = {
-  geo: Location,
-  device: Cellphone,
-  pc: Monitor,
-  source: PieChart
-}
-
 onMounted(async () => {
   console.log('组件挂载')
-  await fetchData()
+  await fetchData('30daysAgo', 'today')
   document.addEventListener('fullscreenchange', handleFullscreenChange)
   document.addEventListener('webkitfullscreenchange', handleFullscreenChange)
   document.addEventListener('msfullscreenchange', handleFullscreenChange)
@@ -529,6 +570,50 @@ const sortData = (key) => {
   deviceData.value.sort((a, b) => key === 'name' ? a.name.localeCompare(b.name) : b.value - a.value)
   sourceData.value.sort((a, b) => key === 'name' ? a.name.localeCompare(b.name) : b.value - a.value)
 }
+
+// 计算数据洞察
+const trendInsights = computed(() => {
+  if (!trendData.value || trendData.value.length < 2) return []
+
+  const latest = trendData.value[trendData.value.length - 1]
+  const previous = trendData.value[trendData.value.length - 2]
+
+  const insights = []
+
+  // 活跃用户变化
+  const userChange = (latest.metricValues[0].value - previous.metricValues[0].value) / previous.metricValues[0].value * 100
+  insights.push({
+    title: '活跃用户变化',
+    content: `相比前一天${userChange > 0 ? '增长' : '下降'}了 ${Math.abs(userChange).toFixed(2)}%`,
+    type: userChange > 0 ? 'positive' : 'negative'
+  })
+
+  // 页面浏览量变化
+  const viewChange = (latest.metricValues[1].value - previous.metricValues[1].value) / previous.metricValues[1].value * 100
+  insights.push({
+    title: '页面浏览量变化',
+    content: `相比前一天${viewChange > 0 ? '增长' : '下降'}了 ${Math.abs(viewChange).toFixed(2)}%`,
+    type: viewChange > 0 ? 'positive' : 'negative'
+  })
+
+  // 平均会话时长变化
+  const durationChange = (latest.metricValues[2].value - previous.metricValues[2].value) / previous.metricValues[2].value * 100
+  insights.push({
+    title: '平均会话时长变化',
+    content: `相比前一天${durationChange > 0 ? '增长' : '下降'}了 ${Math.abs(durationChange).toFixed(2)}%`,
+    type: durationChange > 0 ? 'positive' : 'negative'
+  })
+
+  // 跳出率变化
+  const bounceChange = (latest.metricValues[3].value - previous.metricValues[3].value) / previous.metricValues[3].value * 100
+  insights.push({
+    title: '跳出率变化',
+    content: `相比前一天${bounceChange > 0 ? '增长' : '下降'}了 ${Math.abs(bounceChange).toFixed(2)}%`,
+    type: bounceChange < 0 ? 'positive' : 'negative'  // 跳出率下降是好事
+  })
+
+  return insights
+})
 </script>
 
 <style>
@@ -632,30 +717,34 @@ section {
 }
 
 /* 数据洞察区域 */
-.insights-container {
+.insights-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.insight-card {
+  background: #fff;
+  border-radius: 8px;
+}
+
+.insight-header {
   display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #333;
 }
 
-.insights-container .insight-card {
-  flex: 1;
-  min-width: 320px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 16px;
-  padding: 24px;
+.insight-content {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
-.insight-card .insight-content h4 {
-  color: #ffffff;
-  font-size: 18px;
-  margin-bottom: 12px;
-}
-
-.insight-card .insight-content p {
-  color: #ffffff;
-  opacity: 0.85;
-  line-height: 1.6;
+.section-insights {
+  margin-top: 24px;
 }
 
 /* 响应式调整 */

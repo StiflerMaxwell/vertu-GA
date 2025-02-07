@@ -120,13 +120,35 @@ class GA4Client {
       throw error;
     }
   }
+
+  async runRealtimeReport(report) {
+    try {
+      const token = await this.getAccessToken();
+      const response = await axios.post(
+        `${GA4_API}/properties/${PROPERTY_ID}:runRealtimeReport`,
+        report,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      return response.data;
+    } catch (error) {
+      console.error('GA4 Realtime API Error:', error);
+      throw error;
+    }
+  }
 }
 
 export const ga4Client = new GA4Client();
 
 export async function fetchTrendData(startDate = '30daysAgo', endDate = 'today') {
   try {
-    const response = await ga4Client.runReport({
+    // 打印完整的请求配置
+    const requestConfig = {
       dateRanges: [
         {
           startDate: startDate,
@@ -150,58 +172,55 @@ export async function fetchTrendData(startDate = '30daysAgo', endDate = 'today')
           }
         }
       ]
-    });
-    
-    if (!response || !response.rows) {
-      throw new Error('Invalid response format');
     }
+    
+    console.log('GA4 完整请求配置:', JSON.stringify(requestConfig, null, 2))
 
-    const formattedData = response.rows.map(row => {
-      const date = row.dimensionValues[0].value;
-      const formattedDate = `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}`;
-      
-      return {
-        dimensionValues: [{ value: formattedDate }],
-        metricValues: [
-          { value: parseInt(row.metricValues[0].value, 10) },
-          { value: parseInt(row.metricValues[1].value, 10) },
-          { value: parseFloat(row.metricValues[2].value) },
-          { value: parseFloat(row.metricValues[3].value) }
-        ]
-      };
-    }).sort((a, b) => {
-      return new Date(a.dimensionValues[0].value) - new Date(b.dimensionValues[0].value);
-    });
+    const response = await ga4Client.runReport(requestConfig)
+    console.log('GA4 响应数据:', response)
 
-    return formattedData;
+    return response.rows
   } catch (error) {
-    console.error('Error fetching trend data:', error);
-    throw error;
+    console.error('GA4 API Error:', error)
+    // 打印更详细的错误信息
+    if (error.response) {
+      console.error('错误响应数据:', error.response.data)
+      console.error('错误状态码:', error.response.status)
+      console.error('错误头信息:', error.response.headers)
+    } else if (error.request) {
+      console.error('请求未收到响应:', error.request)
+    } else {
+      console.error('错误信息:', error.message)
+    }
+    console.error('错误配置:', error.config)
+    throw error
   }
 }
 
 export async function fetchGeoDistribution(startDate = '30daysAgo', endDate = 'today') {
   try {
     const response = await ga4Client.runReport({
-      dateRanges: [{ startDate, endDate }],
-      dimensions: [{ name: 'country' }],
-      metrics: [{ name: 'activeUsers' }],
-      orderBys: [
+      dateRanges: [
         {
-          metric: { metricName: 'activeUsers' },
-          desc: true
+          startDate: startDate,
+          endDate: endDate
         }
       ],
-      limit: 10
-    });
+      dimensions: [
+        { name: 'country' }
+      ],
+      metrics: [
+        { name: 'activeUsers' }
+      ]
+    })
 
     return response.rows.map(row => ({
-      name: row.dimensionValues[0].value,
+      name: row.dimensionValues[0].value || '(not set)',
       value: parseInt(row.metricValues[0].value, 10)
-    }));
+    }))
   } catch (error) {
-    console.error('Error fetching geo distribution:', error);
-    throw error;
+    console.error('GA4 API Error:', error)
+    throw error
   }
 }
 
@@ -251,5 +270,31 @@ export async function fetchSourceDistribution(startDate = '30daysAgo', endDate =
   } catch (error) {
     console.error('Error fetching source distribution:', error);
     throw error;
+  }
+}
+
+export async function fetchRealtimeMetrics() {
+  try {
+    const response = await ga4Client.runRealtimeReport({
+      metrics: [
+        { name: 'activeUsers' },
+        { name: 'screenPageViews' },
+        { name: 'averageSessionDuration' },
+        { name: 'bounceRate' }
+      ],
+      minuteRanges: [
+        {
+          name: 'current',
+          startMinutesAgo: 30,
+          endMinutesAgo: 0
+        }
+      ]
+    })
+
+    console.log('Realtime response:', response)
+    return response.rows?.[0] || null
+  } catch (error) {
+    console.error('GA4 Realtime API Error:', error)
+    throw error
   }
 }
