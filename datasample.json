@@ -1,0 +1,685 @@
+{
+    "dimensionHeaders": [
+      {
+        "name": "date"
+      }
+    ],
+    "metricHeaders": [
+      {
+        "name": "activeUsers",
+        "type": "TYPE_INTEGER"
+      },
+      {
+        "name": "screenPageViews",
+        "type": "TYPE_INTEGER"
+      },
+      {
+        "name": "averageSessionDuration",
+        "type": "TYPE_SECONDS"
+      },
+      {
+        "name": "bounceRate",
+        "type": "TYPE_FLOAT"
+      }
+    ],
+    "rows": [
+      {
+        "dimensionValues": [
+          {
+            "value": "20250112"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "10186"
+          },
+          {
+            "value": "29359"
+          },
+          {
+            "value": "120.81715624847445"
+          },
+          {
+            "value": "0.37722389342501073"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250204"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "9478"
+          },
+          {
+            "value": "25240"
+          },
+          {
+            "value": "128.05165199558994"
+          },
+          {
+            "value": "0.41499414994149941"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250203"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "9367"
+          },
+          {
+            "value": "27957"
+          },
+          {
+            "value": "137.14014337020234"
+          },
+          {
+            "value": "0.35523092278377644"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250111"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "9097"
+          },
+          {
+            "value": "27322"
+          },
+          {
+            "value": "122.49257133634204"
+          },
+          {
+            "value": "0.33064133016627079"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250113"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "8717"
+          },
+          {
+            "value": "26572"
+          },
+          {
+            "value": "138.02008295316094"
+          },
+          {
+            "value": "0.33266283524904217"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250205"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "8492"
+          },
+          {
+            "value": "23970"
+          },
+          {
+            "value": "130.49513243975071"
+          },
+          {
+            "value": "0.35368025326474078"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250108"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "8329"
+          },
+          {
+            "value": "23062"
+          },
+          {
+            "value": "115.16609585899123"
+          },
+          {
+            "value": "0.38057212170221366"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250115"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "8270"
+          },
+          {
+            "value": "24521"
+          },
+          {
+            "value": "134.82151578640367"
+          },
+          {
+            "value": "0.3835501468736886"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250206"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "8065"
+          },
+          {
+            "value": "21506"
+          },
+          {
+            "value": "123.12651154192883"
+          },
+          {
+            "value": "0.37648272305312014"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250202"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "7849"
+          },
+          {
+            "value": "22864"
+          },
+          {
+            "value": "121.59365894369606"
+          },
+          {
+            "value": "0.37129025468322457"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250114"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "7696"
+          },
+          {
+            "value": "23312"
+          },
+          {
+            "value": "129.3574939141152"
+          },
+          {
+            "value": "0.35171880181275561"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250110"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "7587"
+          },
+          {
+            "value": "21900"
+          },
+          {
+            "value": "124.92600368618912"
+          },
+          {
+            "value": "0.34968481375358168"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250126"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "7583"
+          },
+          {
+            "value": "21820"
+          },
+          {
+            "value": "131.998157081998"
+          },
+          {
+            "value": "0.35926621726157587"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250201"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "7460"
+          },
+          {
+            "value": "19450"
+          },
+          {
+            "value": "120.01328553236446"
+          },
+          {
+            "value": "0.44818334264952486"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250125"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "7411"
+          },
+          {
+            "value": "19790"
+          },
+          {
+            "value": "128.60231300078954"
+          },
+          {
+            "value": "0.42285134220618092"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250127"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "7408"
+          },
+          {
+            "value": "21980"
+          },
+          {
+            "value": "132.321422351458"
+          },
+          {
+            "value": "0.36231089673317257"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250122"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "7398"
+          },
+          {
+            "value": "20272"
+          },
+          {
+            "value": "131.12786204512716"
+          },
+          {
+            "value": "0.44058068872383527"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250109"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "7122"
+          },
+          {
+            "value": "20833"
+          },
+          {
+            "value": "130.00486154011764"
+          },
+          {
+            "value": "0.34211764705882353"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250129"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "7122"
+          },
+          {
+            "value": "19115"
+          },
+          {
+            "value": "120.59973767132783"
+          },
+          {
+            "value": "0.43193498267001312"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250128"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "7074"
+          },
+          {
+            "value": "19895"
+          },
+          {
+            "value": "130.42092155260346"
+          },
+          {
+            "value": "0.36626734669671451"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250118"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "6791"
+          },
+          {
+            "value": "19837"
+          },
+          {
+            "value": "131.76930262634207"
+          },
+          {
+            "value": "0.3878901373283396"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250124"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "6367"
+          },
+          {
+            "value": "17351"
+          },
+          {
+            "value": "132.59886829889879"
+          },
+          {
+            "value": "0.38647089669638174"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250116"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "6154"
+          },
+          {
+            "value": "19440"
+          },
+          {
+            "value": "167.66906501646744"
+          },
+          {
+            "value": "0.31952191235059763"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250117"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "5961"
+          },
+          {
+            "value": "18482"
+          },
+          {
+            "value": "161.85284734770966"
+          },
+          {
+            "value": "0.324876673713883"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250119"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "5960"
+          },
+          {
+            "value": "18006"
+          },
+          {
+            "value": "140.35483383764773"
+          },
+          {
+            "value": "0.32456387169386608"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250131"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "5861"
+          },
+          {
+            "value": "17023"
+          },
+          {
+            "value": "134.21774420518207"
+          },
+          {
+            "value": "0.37128851540616248"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250121"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "5774"
+          },
+          {
+            "value": "17934"
+          },
+          {
+            "value": "146.37295334292565"
+          },
+          {
+            "value": "0.3326280152348709"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250123"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "5767"
+          },
+          {
+            "value": "17450"
+          },
+          {
+            "value": "155.00112606057567"
+          },
+          {
+            "value": "0.35829872547615638"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250120"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "5581"
+          },
+          {
+            "value": "18755"
+          },
+          {
+            "value": "195.28275022916975"
+          },
+          {
+            "value": "0.31673744325669939"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250130"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "5520"
+          },
+          {
+            "value": "17216"
+          },
+          {
+            "value": "141.69573058343445"
+          },
+          {
+            "value": "0.355127427184466"
+          }
+        ]
+      },
+      {
+        "dimensionValues": [
+          {
+            "value": "20250207"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "3669"
+          },
+          {
+            "value": "11886"
+          },
+          {
+            "value": "290.6867731423178"
+          },
+          {
+            "value": "0.55643639109097776"
+          }
+        ]
+      }
+    ],
+    "rowCount": 31,
+    "metadata": {
+      "currencyCode": "USD",
+      "timeZone": "Asia/Hong_Kong"
+    },
+    "kind": "analyticsData#runReport"
+  }
+  
