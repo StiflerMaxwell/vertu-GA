@@ -1,0 +1,114 @@
+/* 浅色主题变量 */
+:root {
+  /* 背景色 */
+  --bg-color: #f8fafc;
+  --card-bg: #ffffff;
+  --hover-bg: #f4f4f5;
+  
+  /* 文字颜色 */
+  --text-color: #1a1a1a;
+  --text-secondary: #606266;
+  --text-tertiary: #909399;
+  
+  /* 边框和阴影 */
+  --border-color: rgba(0, 0, 0, 0.05);
+  --shadow-color: rgba(0, 0, 0, 0.05);
+  --hover-color: rgba(0, 0, 0, 0.02);
+  
+  /* 主题色 */
+  --primary-color: #409EFF;
+  --primary-light: rgba(64, 158, 255, 0.1);
+  --success-color: #67C23A;
+  --success-light: rgba(103, 194, 58, 0.1);
+  --warning-color: #E6A23C;
+  --warning-light: rgba(230, 162, 60, 0.1);
+  --danger-color: #F56C6C;
+  --danger-light: rgba(245, 108, 108, 0.1);
+}
+
+/* 深色主题变量 */
+:root.dark {
+  /* 背景色 */
+  --bg-color: #1a1a1a;
+  --card-bg: #2c2c2c;
+  --hover-bg: #363636;
+  
+  /* 文字颜色 */
+  --text-color: #ffffff;
+  --text-secondary: #a8a8b2;
+  --text-tertiary: #808088;
+  
+  /* 边框和阴影 */
+  --border-color: rgba(255, 255, 255, 0.1);
+  --shadow-color: rgba(0, 0, 0, 0.2);
+  --hover-color: rgba(255, 255, 255, 0.05);
+  
+  /* 主题色 - 深色模式下稍微调亮 */
+  --primary-color: #5caeFF;
+  --primary-light: rgba(92, 174, 255, 0.15);
+  --success-color: #85cf5d;
+  --success-light: rgba(133, 207, 93, 0.15);
+  --warning-color: #edb25e;
+  --warning-light: rgba(237, 178, 94, 0.15);
+  --danger-color: #f78989;
+  --danger-light: rgba(247, 137, 137, 0.15);
+}
+
+/* Element Plus 组件深色模式覆盖 */
+:root.dark {
+  --el-bg-color: var(--card-bg);
+  --el-bg-color-overlay: var(--hover-bg);
+  --el-text-color-primary: var(--text-color);
+  --el-text-color-regular: var(--text-secondary);
+  --el-text-color-secondary: var(--text-tertiary);
+  --el-border-color: var(--border-color);
+  --el-border-color-light: var(--border-color);
+  --el-mask-color: rgba(0, 0, 0, 0.8);
+  
+  /* 日期选择器 */
+  --el-datepicker-bg-color: var(--card-bg);
+  --el-datepicker-border-color: var(--border-color);
+  --el-datepicker-text-color: var(--text-color);
+  --el-datepicker-off-text-color: var(--text-tertiary);
+  --el-datepicker-header-text-color: var(--text-color);
+  --el-datepicker-icon-color: var(--text-secondary);
+  --el-datepicker-hover-text-color: var(--primary-color);
+  --el-datepicker-hover-bg-color: var(--hover-bg);
+}
+
+/* 全局过渡动画 */
+* {
+  transition: background-color 0.3s, border-color 0.3s, color 0.3s, box-shadow 0.3s;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-color);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--text-tertiary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* 深色模式滚动条 */
+:root.dark ::-webkit-scrollbar-track {
+  background: var(--card-bg);
+}
+
+:root.dark ::-webkit-scrollbar-thumb {
+  background: var(--text-tertiary);
+}
+
+:root.dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+} 

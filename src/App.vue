@@ -1,39 +1,61 @@
 <template>
-  <div class="dashboard">
-    <div class="dashboard-container">
-      <!-- 顶部导航 -->
-      <header class="dashboard-header">
-        <div class="header-left">
-          <h1>Vertu Analytics</h1>
-          <div class="real-time-indicator">
-            <span class="pulse"></span>
-            实时数据
-          </div>
+  <div class="dashboard" :class="{ 'dark': isDark }">
+    <!-- 全屏 Loading -->
+    <div v-if="loading" class="global-loading">
+      <div class="loading-content">
+        <div class="loading-spinner">
+          <svg viewBox="25 25 50 50" class="circular">
+            <circle cx="50" cy="50" r="20" fill="none" class="path"></circle>
+          </svg>
         </div>
-        <div class="header-right">
-          <el-button class="fullscreen-btn" type="text" @click="toggleFullscreen">
-            <el-icon>
-              <icon-full-screen v-if="!isFullscreen" />
-              <icon-close v-else />
-            </el-icon>
-            {{ isFullscreen ? '退出全屏' : '全屏展示' }}
-          </el-button>
-          <el-date-picker
-            v-model="dateRange"
-            type="daterange"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
-            :shortcuts="dateShortcuts"
-            :clearable="true"
-            value-format="YYYY-MM-DD"
-            @change="handleDateChange"
-          />
-        </div>
-      </header>
+        <div class="loading-text">加载中...</div>
+      </div>
+    </div>
 
-      <!-- 主要内容区域 -->
+    <div v-else class="dashboard-container">
       <div class="dashboard-content">
+        <header class="dashboard-header">
+          <div class="title-section">
+            <h1 class="dashboard-title">
+              <span class="brand">Vertu</span>
+              <span class="analytics">Analytics</span>
+            </h1>
+            <div class="realtime-indicator">
+              实时数据
+              <span class="pulse-dot"></span>
+            </div>
+          </div>
+          <div class="dashboard-actions">
+            <el-date-picker
+              v-model="dateRange"
+              type="daterange"
+              range-separator="至"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期"
+              :size="'default'"
+              class="custom-date-picker"
+              @change="handleDateChange"
+            />
+            <el-button 
+              type="primary" 
+              class="refresh-button"
+              :class="{ 'is-loading': loading }"
+              @click="refreshData"
+            >
+              <el-icon><Refresh /></el-icon>
+              刷新
+            </el-button>
+            <el-button
+              class="theme-toggle"
+              :class="{ 'is-dark': isDark }"
+              @click="toggleTheme"
+            >
+              <el-icon v-if="isDark"><Sunny /></el-icon>
+              <el-icon v-else><Moon /></el-icon>
+            </el-button>
+          </div>
+        </header>
+
         <el-loading :full-screen="false" :element-loading-text="'加载中...'" v-if="loading" />
         
         <template v-else>
@@ -135,7 +157,9 @@ import {
   Monitor,
   PieChart,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Moon,
+  Sunny
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
@@ -549,6 +573,30 @@ const getInsightIcon = (type) => {
   return icons[type] || IconInfo
 }
 
+const isDark = ref(false)
+
+const toggleTheme = () => {
+  isDark.value = !isDark.value
+  // 保存主题偏好到本地存储
+  localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
+  // 更新 HTML 根元素的 class
+  document.documentElement.classList.toggle('dark', isDark.value)
+}
+
+// 初始化主题
+onMounted(() => {
+  const savedTheme = localStorage.getItem('theme')
+  if (savedTheme) {
+    isDark.value = savedTheme === 'dark'
+    document.documentElement.classList.toggle('dark', isDark.value)
+  } else {
+    // 检查系统主题偏好
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    isDark.value = prefersDark
+    document.documentElement.classList.toggle('dark', prefersDark)
+  }
+})
+
 onMounted(async () => {
   console.log('组件挂载')
   await fetchData('30daysAgo', 'today')
@@ -617,46 +665,207 @@ const trendInsights = computed(() => {
 </script>
 
 <style>
+/* 深色模式变量 */
+:root {
+  --bg-color: #f8fafc;
+  --card-bg: #ffffff;
+  --text-color: #1a1a1a;
+  --border-color: rgba(0, 0, 0, 0.05);
+  --hover-color: rgba(0, 0, 0, 0.02);
+}
+
+:root.dark {
+  --bg-color: #1a1a1a;
+  --card-bg: #2c2c2c;
+  --text-color: #ffffff;
+  --border-color: rgba(255, 255, 255, 0.1);
+  --hover-color: rgba(255, 255, 255, 0.05);
+}
+</style>
+
+<style scoped>
 .dashboard {
-  width: 100%;
   min-height: 100vh;
-  background: #1e1e2d;
-  color: #ffffff;
-  padding: 24px;
-  position: absolute;
-  left: 0;
-  top: 0;
-  right: 0;
+  width: 100vw;
+  max-width: 100vw;
+  background: var(--bg-color);
+  margin: 0;
+  padding: 0;
+  color: var(--text-color);
+  transition: background-color 0.3s, color 0.3s;
+}
+
+.dashboard-container {
+  width: 100vw;
+  max-width: 100vw;
+  min-height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
+  margin: 0;
 }
 
 .dashboard-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 32px;
-  padding: 0 16px;
+  margin-bottom: 24px;
+  background: var(--card-bg);
+  padding: 24px 32px;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px var(--border-color);
 }
 
-.header-left {
+.title-section {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 20px;
 }
 
-.header-left h1 {
+.dashboard-title {
   font-size: 28px;
-  font-weight: 600;
-  background: linear-gradient(45deg, #00dc82, #54a0ff);
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand {
+  background: linear-gradient(135deg, #1a1a1a 0%, #4a4a4a 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-fill-color: transparent;
+  font-weight: 900;
+}
+
+.analytics {
+  background: linear-gradient(to right, #3494E6, #EC6EAD);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-fill-color: transparent;
+  font-weight: 800;
+}
+
+/* 深色模式下的渐变 */
+:root.dark .brand {
+  background: linear-gradient(135deg, #ffffff 0%, #a8a8b2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-fill-color: transparent;
+}
+
+:root.dark .analytics {
+  background: linear-gradient(to right, #64B3F4, #FF69B4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-fill-color: transparent;
+}
+
+/* 添加悬停效果 */
+.dashboard-title:hover .brand {
+  animation: shimmer 2s infinite;
+}
+
+.dashboard-title:hover .analytics {
+  animation: shimmer 2s infinite 0.5s;
+}
+
+@keyframes shimmer {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.realtime-indicator {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  color: #10B981;
+  background: rgba(16, 185, 129, 0.1);
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-weight: 500;
+  position: relative;
+  padding-right: 28px;
+  transition: all 0.3s ease;
+}
+
+.realtime-indicator:hover {
+  background: rgba(16, 185, 129, 0.15);
+}
+
+.pulse-dot {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  background-color: #10B981;
+  border-radius: 50%;
+}
+
+.pulse-dot::before,
+.pulse-dot::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-color: #10B981;
+  border-radius: 50%;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.pulse-dot::after {
+  animation-delay: 0.5s;
+}
+
+.dashboard-actions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.custom-date-picker {
+  --el-date-editor-width: 320px;
+}
+
+.refresh-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  transition: all 0.3s ease;
+}
+
+.refresh-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .dashboard-content {
-  max-width: 1600px;
-  margin: 0 auto;
+  width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 24px;
+  margin: 0;
+}
+
+.dashboard-main {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
 /* 区域通用样式 */
@@ -695,10 +904,10 @@ section {
 
 /* 图表区域 */
 .chart-container {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--card-bg);
   border-radius: 16px;
-  padding: 24px;
-  height: 400px;
+  padding: 32px;
+  box-shadow: 0 1px 3px var(--border-color);
 }
 
 /* 行为指标区域 */
@@ -747,44 +956,58 @@ section {
   margin-top: 24px;
 }
 
-/* 响应式调整 */
-@media screen and (max-width: 1400px) {
-  .dashboard-content {
-    gap: 24px;
+/* 响应式设计 */
+@media (max-width: 1600px) {
+  :deep(.metrics-grid) {
+    gap: 20px;
+    margin: 0 -8px;
   }
-  
-  section {
-    padding: 20px;
+
+  :deep(.metric-card) {
+    margin: 0 8px;
+    padding: 20px 24px;
   }
-  
+
   .chart-container {
-    height: 350px;
+    padding: 24px 32px;
   }
 }
 
-@media screen and (max-width: 768px) {
-  .dashboard {
+@media (max-width: 1200px) {
+  :deep(.metrics-grid) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-content {
     padding: 16px;
   }
-  
+
   .dashboard-header {
+    padding: 20px;
     flex-direction: column;
     align-items: flex-start;
-    gap: 16px;
+    gap: 20px;
   }
-  
-  .section-title {
-    font-size: 18px;
+
+  .title-section {
+    width: 100%;
   }
-  
-  .data-cards > div,
-  .behavior-metrics > div,
-  .insights-container > div {
-    min-width: 100%;
+
+  .dashboard-actions {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
   }
-  
+
+  .custom-date-picker {
+    width: 100%;
+  }
+
   .chart-container {
-    height: 300px;
+    padding: 20px;
   }
 }
 
@@ -838,7 +1061,7 @@ section {
   opacity: 0.9;
 }
 
-/* 响应式调整 */
+/* 响应式设计 */
 @media screen and (max-width: 1400px) {
   .distribution-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -860,5 +1083,113 @@ section {
   display: flex;
   gap: 10px;
   margin-bottom: 20px;
+}
+
+/* 调整内容区域的左右边距 */
+@media (min-width: 1660px) {
+  .dashboard-content {
+    padding: 24px 32px;
+  }
+}
+
+@media (max-width: 1659px) {
+  .dashboard-content {
+    padding: 24px;
+  }
+}
+
+.global-loading {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: var(--bg-color);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+}
+
+.circular {
+  width: 100%;
+  height: 100%;
+  animation: loading-rotate 2s linear infinite;
+}
+
+.path {
+  stroke-dasharray: 90, 150;
+  stroke-dashoffset: 0;
+  stroke-width: 3;
+  stroke: #409EFF;
+  stroke-linecap: round;
+  animation: loading-dash 1.5s ease-in-out infinite;
+}
+
+.loading-text {
+  color: var(--text-color);
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 1px;
+}
+
+@keyframes loading-rotate {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes loading-dash {
+  0% {
+    stroke-dasharray: 1, 200;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -40px;
+  }
+  100% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -120px;
+  }
+}
+
+.theme-toggle {
+  width: 40px;
+  height: 40px;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+}
+
+.theme-toggle:hover {
+  background: var(--hover-color);
+  transform: translateY(-1px);
+}
+
+.theme-toggle.is-dark {
+  color: #ffd700;
+}
+
+.theme-toggle .el-icon {
+  font-size: 20px;
 }
 </style> 

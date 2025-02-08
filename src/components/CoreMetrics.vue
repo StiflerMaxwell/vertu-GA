@@ -205,14 +205,15 @@ onMounted(() => {
 }
 
 .metric-card {
-  background: #ffffff;
+  background: var(--card-bg);
+  color: var(--text-color);
   border-radius: 12px;
   padding: 24px;
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border-color);
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px var(--border-color);
 }
 
 .metric-header {
@@ -241,13 +242,14 @@ onMounted(() => {
   margin: 0;
   font-size: 16px;
   font-weight: 500;
-  color: #1a1a1a;
+  color: var(--text-color);
   letter-spacing: 0.5px;
 }
 
 .metric-subtitle {
   font-size: 12px;
-  color: #666666;
+  color: var(--text-color);
+  opacity: 0.6;
   font-weight: 400;
 }
 
@@ -303,8 +305,8 @@ onMounted(() => {
 
 .metric-card:hover {
   transform: translateY(-2px);
-  border-color: rgba(0, 0, 0, 0.1);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  border-color: var(--border-color);
+  box-shadow: 0 8px 24px var(--hover-color);
 }
 
 @media (max-width: 1400px) {

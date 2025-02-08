@@ -73,6 +73,7 @@ const updateChart = () => {
       left: '3%',
       right: '4%',
       bottom: '3%',
+      top: '3%',
       containLabel: true
     },
     xAxis: {
@@ -86,6 +87,9 @@ const updateChart = () => {
       },
       axisLabel: {
         color: '#666'
+      },
+      splitLine: {
+        show: false
       }
     },
     yAxis: [
@@ -103,6 +107,9 @@ const updateChart = () => {
         },
         nameTextStyle: {
           color: '#666'
+        },
+        splitLine: {
+          show: false
         }
       },
       {
@@ -120,6 +127,9 @@ const updateChart = () => {
         },
         nameTextStyle: {
           color: '#666'
+        },
+        splitLine: {
+          show: false
         }
       },
       {
@@ -138,6 +148,9 @@ const updateChart = () => {
         },
         nameTextStyle: {
           color: '#666'
+        },
+        splitLine: {
+          show: false
         }
       }
     ],
