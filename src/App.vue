@@ -127,6 +127,16 @@
               </div>
             </div>
           </section>
+
+          <div class="dashboard-charts">
+            <div class="chart-container">
+              <TrendChart :data="chartData" />
+            </div>
+            <FreeTrafficAnalysis :data="trafficData" />
+            <div class="analysis-section">
+              <TrafficSourceAnalysis :data="sourceData" />
+            </div>
+          </div>
         </template>
       </div>
     </div>
@@ -142,6 +152,8 @@ import ChartCard from './components/ChartCard.vue'
 import TrendChart from './components/TrendChart.vue'
 import DistributionChart from './components/DistributionChart.vue'
 import CoreMetrics from './components/CoreMetrics.vue'
+import FreeTrafficAnalysis from './components/FreeTrafficAnalysis.vue'
+import TrafficSourceAnalysis from './components/TrafficSourceAnalysis.vue'
 import {
   FullScreen as IconFullScreen,
   Close as IconClose,
@@ -216,7 +228,65 @@ const dateShortcuts = [
 
 const geoData = ref([])
 const deviceData = ref([])
-const sourceData = ref([])
+const sourceData = ref({
+  sources: [
+    {
+      type: 'search',
+      source: 'Google 自然搜索',
+      visits: 45678,
+      users: 32145,
+      bounceRate: 42.5,
+      avgDuration: 185,
+      trend: 5.2
+    },
+    {
+      type: 'social',
+      source: '微信',
+      visits: 23456,
+      users: 18234,
+      bounceRate: 38.2,
+      avgDuration: 156,
+      trend: 3.8
+    },
+    {
+      type: 'direct',
+      source: '直接访问',
+      visits: 12543,
+      users: 9876,
+      bounceRate: 45.6,
+      avgDuration: 134,
+      trend: -2.1
+    },
+    {
+      type: 'referral',
+      source: 'vertu.com',
+      visits: 8765,
+      users: 6543,
+      bounceRate: 35.8,
+      avgDuration: 223,
+      trend: 1.5
+    },
+    {
+      type: 'social',
+      source: '微博',
+      visits: 6789,
+      users: 5432,
+      bounceRate: 41.2,
+      avgDuration: 145,
+      trend: 2.8
+    },
+    {
+      type: 'search',
+      source: 'Bing 自然搜索',
+      visits: 4567,
+      users: 3456,
+      bounceRate: 44.3,
+      avgDuration: 167,
+      trend: -1.2
+    }
+    // ... 可以添加更多来源
+  ]
+})
 const trendData = ref([])
 
 const filteredTrendData = computed(() => {
@@ -661,6 +731,36 @@ const trendInsights = computed(() => {
   })
 
   return insights
+})
+
+// 添加免费流量数据
+const trafficData = ref({
+  organic: {
+    visits: 15234,
+    trend: 5.2,
+    keywords: 1250,
+    avgPosition: 12.5
+  },
+  social: {
+    visits: 8765,
+    trend: -2.1,
+    engagement: 3.2
+  },
+  direct: {
+    visits: 12543,
+    trend: 3.8,
+    bounceRate: 45.6
+  },
+  referral: {
+    visits: 6789,
+    trend: 1.5,
+    sources: 89
+  },
+  keywords: [
+    { keyword: "vertu phone", position: 1, visits: 2345, trend: 5.2 },
+    { keyword: "luxury phone", position: 3, visits: 1890, trend: -1.2 },
+    { keyword: "premium smartphone", position: 5, visits: 1567, trend: 2.8 }
+  ]
 })
 </script>
 
@@ -1191,5 +1291,26 @@ section {
 
 .theme-toggle .el-icon {
   font-size: 20px;
+}
+
+.dashboard-charts {
+  display: flex;
+  gap: 24px;
+}
+
+.analysis-section {
+  margin-top: 24px;
+  width: 100%;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .dashboard-content {
+    gap: 16px;
+  }
+  
+  .analysis-section {
+    margin-top: 16px;
+  }
 }
 </style> 
