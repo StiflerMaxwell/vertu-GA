@@ -7,6 +7,22 @@
       </div>
     </div>
 
+    <div class="metrics-overview">
+      <el-row :gutter="20">
+        <el-col :xs="12" :sm="12" :md="6" v-for="metric in metricsData" :key="metric.key">
+          <el-card shadow="hover" class="metric-card">
+            <div class="metric-content">
+              <div class="metric-title">{{ metric.label }}</div>
+              <div class="metric-value">{{ formatMetricValue(metric) }}</div>
+              <div class="metric-trend" :class="getTrendClass(metric.trend)">
+                {{ formatTrend(metric.trend) }}
+              </div>
+            </div>
+          </el-card>
+        </el-col>
+      </el-row>
+    </div>
+
     <el-tabs v-model="activeTab" class="traffic-tabs" @tab-change="handleTabChange">
       <el-tab-pane label="搜索词" name="query">
         <el-table 
@@ -146,6 +162,8 @@
         @current-change="handleCurrentChange"
       />
     </div>
+
+    <el-empty v-if="!loading && tableData.length === 0" description="暂无数据" />
   </div>
 </template>
 
@@ -153,6 +171,8 @@
 import { ref, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ga4Client } from '../api/ga4'
+import { debounce } from 'lodash-es'
+import { fetchGscData, testGSCSetup } from '../api/gsc'
 
 const props = defineProps({
   startDate: {
@@ -166,6 +186,10 @@ const props = defineProps({
   accessToken: {
     type: String,
     required: true
+  },
+  siteUrl: {
+    type: String,
+    required: true
   }
 })
 
@@ -175,13 +199,17 @@ const tableData = ref([])
 const currentPage = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
+const metricsData = ref([])
 const currentSort = ref({
   prop: 'clicks',
   order: 'descending'
 })
 
+// 修改 API URL，需要替换实际的网站 URL
+const SITE_URL = encodeURIComponent('https://vertu.com');
+
 // 处理 Tab 切换
-const handleTabChange = (tab) => {
+const handleTabChange = () => {
   currentPage.value = 1
   fetchData()
 }
@@ -208,8 +236,8 @@ const handleSizeChange = (size) => {
   fetchData()
 }
 
-// 获取数据
-async function fetchData() {
+// 使用防抖处理搜索
+const fetchData = debounce(async () => {
   if (!isValidDate(props.startDate) || !isValidDate(props.endDate)) {
     return
   }
@@ -231,13 +259,13 @@ async function fetchData() {
       }]
     }
 
-    // 调用 Search Console API
+    // 调用 Search Console API - 这里需要修改
     const response = await fetch(
-      'https://www.googleapis.com/webmasters/v3/sites/siteUrl/searchAnalytics/query',
+      `https://www.googleapis.com/webmasters/v3/sites/${SITE_URL}/searchAnalytics/query`,
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${props.accessToken}`,  // 需要从 props 或 store 获取
+          'Authorization': `Bearer ${props.accessToken}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(searchConsoleRequest)
@@ -245,7 +273,10 @@ async function fetchData() {
     )
 
     const data = await response.json()
-    console.log('Search Console response:', data)
+    
+    if (!response.ok) {
+      throw new Error(data.error?.message || '请求失败')
+    }
 
     if (data.rows) {
       tableData.value = data.rows.map(row => ({
@@ -253,23 +284,23 @@ async function fetchData() {
         path: activeTab.value === 'path' ? row.keys[0] : null,
         clicks: row.clicks,
         impressions: row.impressions,
-        ctr: row.ctr * 100,  // 转换为百分比
+        ctr: row.ctr,  // 已经是小数形式，不需要乘 100
         position: row.position
       }))
 
       total.value = data.totalRows || data.rows.length
+      updateMetricsData(data)
     } else {
       tableData.value = []
       total.value = 0
     }
-
   } catch (error) {
     console.error('Error fetching Search Console data:', error)
-    ElMessage.error('获取数据失败')
+    ElMessage.error(error.message || '获取数据失败')
   } finally {
     loading.value = false
   }
-}
+}, 300)
 
 // 检查日期是否有效
 const isValidDate = (dateStr) => {
@@ -302,13 +333,81 @@ const formatNumber = (value) => {
 // 格式化百分比
 const formatPercent = (value) => {
   if (!value && value !== 0) return '-'
-  return `${(value * 100).toFixed(1)}%`
+  return `${value.toFixed(1)}%`
 }
 
 // 格式化排名
 const formatPosition = (value) => {
   if (!value && value !== 0) return '-'
   return value.toFixed(1)
+}
+
+// 更新概览数据
+const updateMetricsData = (data) => {
+  metricsData.value = [
+    {
+      key: 'clicks',
+      label: '总点击',
+      value: data.totals?.clicks || 0,
+      type: 'number',
+      trend: calculateTrend(data, 'clicks')
+    },
+    {
+      key: 'impressions',
+      label: '总展示',
+      value: data.totals?.impressions || 0,
+      type: 'number',
+      trend: calculateTrend(data, 'impressions')
+    },
+    {
+      key: 'ctr',
+      label: '平均点击率',
+      value: data.totals?.ctr || 0,
+      type: 'percent',
+      trend: calculateTrend(data, 'ctr')
+    },
+    {
+      key: 'position',
+      label: '平均排名',
+      value: data.totals?.position || 0,
+      type: 'position',
+      trend: calculateTrend(data, 'position')
+    }
+  ]
+}
+
+// 计算趋势
+const calculateTrend = (data, metric) => {
+  // 实现趋势计算逻辑
+  return 0
+}
+
+// 格式化概览数据
+const formatMetricValue = (metric) => {
+  switch (metric.type) {
+    case 'number':
+      return formatNumber(metric.value)
+    case 'percent':
+      return formatPercent(metric.value)
+    case 'position':
+      return formatPosition(metric.value)
+    default:
+      return metric.value
+  }
+}
+
+// 格式化趋势
+const formatTrend = (trend) => {
+  if (trend === 0) return '持平'
+  if (trend > 0) return '上升'
+  if (trend < 0) return '下降'
+}
+
+// 获取趋势类
+const getTrendClass = (trend) => {
+  if (trend === 0) return 'neutral'
+  if (trend > 0) return 'up'
+  if (trend < 0) return 'down'
 }
 
 // 监听日期变化
@@ -323,9 +422,20 @@ watch(
   { immediate: true }
 )
 
-onMounted(() => {
-  if (isValidDate(props.startDate) && isValidDate(props.endDate)) {
-    fetchData()
+onMounted(async () => {
+  try {
+    const authSuccess = await testGSCSetup()
+    if (!authSuccess) {
+      ElMessage.error('Search Console API 认证失败')
+      return
+    }
+    
+    if (isValidDate(props.startDate) && isValidDate(props.endDate)) {
+      fetchData()
+    }
+  } catch (error) {
+    console.error('Setup error:', error)
+    ElMessage.error('初始化失败')
   }
 })
 </script>
@@ -358,6 +468,32 @@ onMounted(() => {
   margin: 0;
 }
 
+.metrics-overview {
+  margin-bottom: 24px;
+}
+
+.metric-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+}
+
+.metric-content {
+  text-align: center;
+}
+
+.metric-title {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.metric-value {
+  color: var(--text-color);
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+ 
 .table-cell-text {
   color: var(--text-color);
   font-weight: normal;
@@ -419,6 +555,10 @@ onMounted(() => {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
+  }
+
+  .metrics-overview {
+    margin-bottom: 16px;
   }
 }
 </style> 

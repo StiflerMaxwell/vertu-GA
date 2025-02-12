@@ -1,83 +1,122 @@
 import axios from 'axios'
 
-const GSC_API = 'https://searchconsole.googleapis.com/webmasters/v3/sites'
+const BASE_URL = 'https://www.googleapis.com/webmasters/v3'
 const SITE_URL = import.meta.env.VITE_GSC_SITE_URL
 const CLIENT_ID = import.meta.env.VITE_GSC_CLIENT_ID
 
-// 获取 GSC 数据
-export async function fetchGscData(startDate, endDate) {
-  try {
-    console.log('Getting access token...')
-    const token = await getAccessToken()
-    console.log('Token received, making API request...')
-    
-    const response = await axios.post(
-      `${GSC_API}/${encodeURIComponent(SITE_URL)}/searchAnalytics/query`,
-      {
-        startDate,
-        endDate,
-        dimensions: ['query'],
-        rowLimit: 5000
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    )
-    
-    console.log('Raw API response:', response.data)
-
-    const processedData = {
-      keywords: response.data.rows || [],
-      totalKeywords: response.data.rows?.length || 0,
-      clicks: response.data.rows?.reduce((sum, row) => sum + row.clicks, 0) || 0,
-      impressions: response.data.rows?.reduce((sum, row) => sum + row.impressions, 0) || 0,
-      avgPosition: calculateAvgPosition(response.data.rows || [])
+// 初始化 Google OAuth
+function initGoogleAuth() {
+  return new Promise((resolve) => {
+    const script = document.createElement('script')
+    script.src = 'https://accounts.google.com/gsi/client'
+    script.onload = () => {
+      google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: 'https://www.googleapis.com/auth/webmasters.readonly',
+        callback: (response) => {
+          if (response.access_token) {
+            localStorage.setItem('gsc_token', response.access_token)
+            resolve(response.access_token)
+          }
+        },
+      })
     }
-    
-    console.log('Processed data:', processedData)
-    return processedData
+    document.body.appendChild(script)
+  })
+}
 
+// 获取 token
+async function getAccessToken() {
+  const token = localStorage.getItem('gsc_token')
+  if (token) {
+    return token
+  }
+  return await initGoogleAuth()
+}
+
+// 获取 Search Console 数据
+export async function fetchGscData({
+  startDate,
+  endDate,
+  dimensions = ['query'],
+  rowLimit = 10
+}) {
+  try {
+    const token = await getAccessToken()
+
+    const requestBody = {
+      startDate,
+      endDate
+    }
+
+    const response = await axios({
+      method: 'POST',
+      url: `${BASE_URL}/sites/${encodeURIComponent(SITE_URL)}/searchAnalytics/query`,
+      data: requestBody,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    return response.data
   } catch (error) {
-    console.error('GSC API Error:', error)
-    if (error.response) {
-      console.error('Error response:', error.response.data)
-      console.error('Error status:', error.response.status)
+    console.error('Search Analytics API Error:', error.response?.data || error)
+    // 如果是认证错误，清除 token 并重试
+    if (error.response?.status === 401) {
+      localStorage.removeItem('gsc_token')
+      return fetchGscData({ startDate, endDate, dimensions, rowLimit })
     }
     throw error
   }
 }
 
+// 测试连接
+export async function testGSCSetup() {
+  try {
+    const token = await getAccessToken()
+    const response = await axios({
+      method: 'GET',
+      url: `${BASE_URL}/sites/${encodeURIComponent(SITE_URL)}`,
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    return response.data
+  } catch (error) {
+    console.error('Test failed:', error.response?.data || error)
+    throw error
+  }
+}
+
+// 计算平均点击率
+function calculateAverageCtr(rows) {
+  if (!rows?.length) return 0
+  const totalClicks = rows.reduce((sum, row) => sum + (row.clicks || 0), 0)
+  const totalImpressions = rows.reduce((sum, row) => sum + (row.impressions || 0), 0)
+  return totalImpressions > 0 ? totalClicks / totalImpressions : 0
+}
+
 // 计算平均排名
-function calculateAvgPosition(rows) {
-  if (!rows.length) return 0
-  const totalWeight = rows.reduce((sum, row) => sum + row.impressions, 0)
-  const weightedPosition = rows.reduce((sum, row) => sum + (row.position * row.impressions), 0)
+function calculateAveragePosition(rows) {
+  if (!rows?.length) return 0
+  const totalWeight = rows.reduce((sum, row) => sum + (row.impressions || 0), 0)
+  const weightedPosition = rows.reduce((sum, row) => sum + ((row.position || 0) * (row.impressions || 0)), 0)
   return totalWeight > 0 ? weightedPosition / totalWeight : 0
 }
 
-// 获取访问令牌
-async function getAccessToken() {
-  try {
-    console.log('Creating JWT...')
-    const jwt = createJWT()
-    console.log('JWT created, requesting token...')
-    
-    const response = await axios.post(SERVICE_ACCOUNT.token_uri, {
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: jwt
-    })
-    
-    console.log('Token received successfully')
-    return response.data.access_token
-  } catch (error) {
-    console.error('Token Error:', error)
-    if (error.response) {
-      console.error('Token error details:', error.response.data)
-    }
-    throw error
+// 导出其他可能需要的函数
+export const utils = {
+  isValidDate: (dateStr) => {
+    if (!dateStr) return false
+    const date = new Date(dateStr)
+    return date instanceof Date && !isNaN(date)
+  },
+  
+  formatDate: (date) => {
+    return date instanceof Date 
+      ? date.toISOString().split('T')[0]
+      : date
   }
 }
 
