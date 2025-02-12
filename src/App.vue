@@ -34,6 +34,8 @@
               end-placeholder="结束日期"
               :size="'default'"
               class="custom-date-picker"
+              value-format="YYYY-MM-DD"
+              :default-value="defaultDates"
               @change="handleDateChange"
             />
             <el-button 
@@ -60,17 +62,43 @@
         
         <template v-else>
           <!-- 核心指标卡片 -->
-          <section class="section-core-metrics" v-if="trendData && trendData.length > 0">
+          <section class="section-core-metrics">
             <h2 class="section-title">核心指标</h2>
-            <CoreMetrics :data="trendData" />
+            <CoreMetrics 
+              :start-date="startDate" 
+              :end-date="endDate" 
+              :key="`core-metrics-${dateKey}`"
+            />
           </section>
 
           <!-- 趋势分析区域 -->
-          <section class="section-trends" v-if="trendData && trendData.length > 0">
+          <section class="section-trends">
             <h2 class="section-title">趋势分析</h2>
             <div class="chart-container">
-              <TrendChart :data="trendData" />
+              <TrendChart 
+                :start-date="startDate" 
+                :end-date="endDate" 
+                :key="`trend-chart-${dateKey}`"
+              />
             </div>
+          </section>
+
+          <!-- 免费流量分析 -->
+          <section class="section-traffic">
+            <FreeTrafficAnalysis 
+              :start-date="startDate" 
+              :end-date="endDate" 
+              :key="`free-traffic-${dateKey}`"
+            />
+          </section>
+
+          <!-- 访问来源分析 -->
+          <section class="section-source">
+            <TrafficSourceAnalysis 
+              :start-date="startDate" 
+              :end-date="endDate" 
+              :key="`traffic-source-${dateKey}`"
+            />
           </section>
 
           <!-- 添加数据洞察部分 -->
@@ -127,16 +155,6 @@
               </div>
             </div>
           </section>
-
-          <div class="dashboard-charts">
-            <div class="chart-container">
-              <TrendChart :data="chartData" />
-            </div>
-            <FreeTrafficAnalysis :data="trafficData" />
-            <div class="analysis-section">
-              <TrafficSourceAnalysis :data="sourceData" />
-            </div>
-          </div>
         </template>
       </div>
     </div>
@@ -176,7 +194,7 @@ import {
 import { ElMessage } from 'element-plus'
 
 const loading = ref(false)
-const dateRange = ref([new Date(), new Date()])
+const dateRange = ref(null)
 const dataCards = ref([])
 const userTrendData = ref([])
 const pageViewData = ref([])
@@ -228,65 +246,7 @@ const dateShortcuts = [
 
 const geoData = ref([])
 const deviceData = ref([])
-const sourceData = ref({
-  sources: [
-    {
-      type: 'search',
-      source: 'Google 自然搜索',
-      visits: 45678,
-      users: 32145,
-      bounceRate: 42.5,
-      avgDuration: 185,
-      trend: 5.2
-    },
-    {
-      type: 'social',
-      source: '微信',
-      visits: 23456,
-      users: 18234,
-      bounceRate: 38.2,
-      avgDuration: 156,
-      trend: 3.8
-    },
-    {
-      type: 'direct',
-      source: '直接访问',
-      visits: 12543,
-      users: 9876,
-      bounceRate: 45.6,
-      avgDuration: 134,
-      trend: -2.1
-    },
-    {
-      type: 'referral',
-      source: 'vertu.com',
-      visits: 8765,
-      users: 6543,
-      bounceRate: 35.8,
-      avgDuration: 223,
-      trend: 1.5
-    },
-    {
-      type: 'social',
-      source: '微博',
-      visits: 6789,
-      users: 5432,
-      bounceRate: 41.2,
-      avgDuration: 145,
-      trend: 2.8
-    },
-    {
-      type: 'search',
-      source: 'Bing 自然搜索',
-      visits: 4567,
-      users: 3456,
-      bounceRate: 44.3,
-      avgDuration: 167,
-      trend: -1.2
-    }
-    // ... 可以添加更多来源
-  ]
-})
+const sourceData = ref([])
 const trendData = ref([])
 
 const filteredTrendData = computed(() => {
@@ -325,24 +285,10 @@ const iconMap = markRaw({
 })
 
 const formatDate = (date) => {
-  if (!date) return ''
-  // 处理特殊日期
-  if (typeof date === 'string') {
-    if (date === '30daysAgo' || date === 'today') {
-      return date
-    }
-    // 如果已经是 YYYY-MM-DD 格式，直接返回
-    if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      return date
-    }
-  }
-  
-  // 处理 Date 对象
-  const d = new Date(date)
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`  // 使用 YYYY-MM-DD 格式
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 const fetchData = async (start, end) => {
@@ -380,22 +326,80 @@ const fetchData = async (start, end) => {
   }
 }
 
-const handleDateChange = async (val) => {
-  console.log('原始日期值:', val)
-  
-  if (!val) {
-    console.log('使用默认日期范围')
-    await fetchData('30daysAgo', 'today')
+const startDate = ref('')
+const endDate = ref('')
+const dateKey = ref(0)
+
+// 日期处理
+const handleDateChange = async (dates) => {
+  console.log('Date range changed:', dates)
+  if (dates) {
+    startDate.value = dates[0]
+    endDate.value = dates[1]
+    dateKey.value++ // 更新key触发组件重新渲染
+    await refreshData()
+  }
+}
+
+// 刷新所有数据
+const refreshData = async () => {
+  if (!startDate.value || !endDate.value) {
+    ElMessage.warning('请选择日期范围')
     return
   }
 
-  const [start, end] = val
-  const startDate = formatDate(start)
-  const endDate = formatDate(end)
-  console.log('格式化后的日期范围:', { startDate, endDate })
-  
-  await fetchData(startDate, endDate)
+  loading.value = true
+  try {
+    console.log('Refreshing data with dates:', {
+      start: startDate.value,
+      end: endDate.value
+    })
+    
+    // 这里添加其他数据获取逻辑
+    // await fetchTrendData()
+    // await fetchCoreMetrics()
+    
+    ElMessage.success('数据已更新')
+  } catch (error) {
+    console.error('Error refreshing data:', error)
+    ElMessage.error('数据更新失败')
+  } finally {
+    loading.value = false
+  }
 }
+
+// 初始化默认日期范围
+const initDefaultDates = () => {
+  const end = new Date()
+  const start = new Date()
+  start.setDate(end.getDate() - 7)
+  
+  const formatDate = (date) => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+  
+  startDate.value = formatDate(start)
+  endDate.value = formatDate(end)
+  dateRange.value = [startDate.value, endDate.value]
+  dateKey.value++
+  
+  console.log('Initialized dates:', {
+    startDate: startDate.value,
+    endDate: endDate.value,
+    dateRange: dateRange.value
+  })
+  
+  // 初始化时加载数据
+  refreshData()
+}
+
+// 在组件挂载时初始化日期
+onMounted(() => {
+  initDefaultDates()
+})
 
 function updateDashboard(data) {
   if (!data?.rows) {
@@ -938,7 +942,7 @@ const trafficData = ref({
 }
 
 .custom-date-picker {
-  --el-date-editor-width: 320px;
+  width: 320px;
 }
 
 .refresh-button {

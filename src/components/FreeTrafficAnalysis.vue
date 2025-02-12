@@ -1,238 +1,341 @@
 <template>
-  <div class="traffic-analysis">
+  <div class="free-traffic-analysis" v-loading="loading">
     <div class="analysis-header">
       <div class="title-section">
         <h3 class="analysis-title">免费流量分析</h3>
         <el-tag size="small" type="success">SEO</el-tag>
       </div>
-      <div class="analysis-actions">
-        <el-select v-model="timeRange" size="small" class="time-select">
-          <el-option label="最近7天" value="7d" />
-          <el-option label="最近30天" value="30d" />
-          <el-option label="最近90天" value="90d" />
-        </el-select>
-      </div>
     </div>
 
-    <div class="analysis-content">
-      <!-- 主要指标卡片 -->
-      <div class="main-metrics">
-        <div class="metric-card primary">
-          <div class="metric-header">
-            <span class="metric-label">自然搜索流量</span>
-            <el-tooltip content="来自搜索引擎的免费流量" placement="top">
-              <el-icon><QuestionFilled /></el-icon>
-            </el-tooltip>
-          </div>
-          <div class="metric-body">
-            <span class="metric-value">{{ formatNumber(data.organic?.visits || 0) }}</span>
-            <span class="metric-trend" :class="getTrendClass(data.organic?.trend)">
-              {{ formatTrend(data.organic?.trend) }}
-            </span>
-          </div>
-          <div class="metric-footer">
-            <div class="sub-metric">
-              <span>排名关键词</span>
-              <span>{{ formatNumber(data.organic?.keywords || 0) }}</span>
-            </div>
-            <div class="sub-metric">
-              <span>平均排名</span>
-              <span>{{ formatNumber(data.organic?.avgPosition || 0) }}</span>
-            </div>
-          </div>
-        </div>
+    <el-tabs v-model="activeTab" class="traffic-tabs" @tab-change="handleTabChange">
+      <el-tab-pane label="搜索词" name="query">
+        <el-table 
+          :data="tableData" 
+          style="width: 100%"
+          @sort-change="handleSortChange"
+        >
+          <el-table-column 
+            prop="query" 
+            label="搜索词" 
+            min-width="300"
+            sortable="custom"
+          >
+            <template #default="{ row }">
+              <span class="table-cell-text">{{ row.query || '(not set)' }}</span>
+            </template>
+          </el-table-column>
 
-        <div class="metrics-grid">
-          <div class="metric-card">
-            <div class="metric-header">
-              <span class="metric-label">社交媒体</span>
-            </div>
-            <div class="metric-body">
-              <span class="metric-value">{{ formatNumber(data.social?.visits || 0) }}</span>
-              <span class="metric-trend" :class="getTrendClass(data.social?.trend)">
-                {{ formatTrend(data.social?.trend) }}
-              </span>
-            </div>
-            <div class="metric-footer">
-              <div class="sub-metric">
-                <span>参与度</span>
-                <span>{{ formatPercent(data.social?.engagement || 0) }}</span>
-              </div>
-            </div>
-          </div>
+          <el-table-column 
+            prop="clicks" 
+            label="点击次数" 
+            min-width="120"
+            sortable="custom"
+          >
+            <template #default="{ row }">
+              <span class="table-cell-text">{{ formatNumber(row.clicks) }}</span>
+            </template>
+          </el-table-column>
 
-          <div class="metric-card">
-            <div class="metric-header">
-              <span class="metric-label">直接访问</span>
-            </div>
-            <div class="metric-body">
-              <span class="metric-value">{{ formatNumber(data.direct?.visits || 0) }}</span>
-              <span class="metric-trend" :class="getTrendClass(data.direct?.trend)">
-                {{ formatTrend(data.direct?.trend) }}
-              </span>
-            </div>
-            <div class="metric-footer">
-              <div class="sub-metric">
-                <span>跳出率</span>
-                <span>{{ formatPercent(data.direct?.bounceRate || 0) }}</span>
-              </div>
-            </div>
-          </div>
+          <el-table-column 
+            prop="impressions" 
+            label="展示次数" 
+            min-width="120"
+            sortable="custom"
+          >
+            <template #default="{ row }">
+              <span class="table-cell-text">{{ formatNumber(row.impressions) }}</span>
+            </template>
+          </el-table-column>
 
-          <div class="metric-card">
-            <div class="metric-header">
-              <span class="metric-label">引荐流量</span>
-            </div>
-            <div class="metric-body">
-              <span class="metric-value">{{ formatNumber(data.referral?.visits || 0) }}</span>
-              <span class="metric-trend" :class="getTrendClass(data.referral?.trend)">
-                {{ formatTrend(data.referral?.trend) }}
-              </span>
-            </div>
-            <div class="metric-footer">
-              <div class="sub-metric">
-                <span>引荐来源</span>
-                <span>{{ formatNumber(data.referral?.sources || 0) }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+          <el-table-column 
+            prop="ctr" 
+            label="点击率" 
+            min-width="100"
+            sortable="custom"
+          >
+            <template #default="{ row }">
+              <span class="table-cell-text">{{ formatPercent(row.ctr) }}</span>
+            </template>
+          </el-table-column>
 
-      <!-- 详细分析图表 -->
-      <div class="analysis-charts">
-        <el-tabs v-model="activeTab" class="traffic-tabs">
-          <el-tab-pane label="流量趋势" name="trend">
-            <div ref="trendChartRef" class="chart-container"></div>
-          </el-tab-pane>
-          <el-tab-pane label="来源分布" name="distribution">
-            <div ref="pieChartRef" class="chart-container"></div>
-          </el-tab-pane>
-          <el-tab-pane label="关键词分析" name="keywords">
-            <div class="keywords-table">
-              <el-table :data="data.keywords" stripe style="width: 100%">
-                <el-table-column prop="keyword" label="关键词" />
-                <el-table-column prop="position" label="排名" width="100" />
-                <el-table-column prop="visits" label="访问量" width="120" />
-                <el-table-column prop="trend" label="趋势" width="100">
-                  <template #default="scope">
-                    <span class="metric-trend" :class="getTrendClass(scope.row.trend)">
-                      {{ formatTrend(scope.row.trend) }}
-                    </span>
-                  </template>
-                </el-table-column>
-              </el-table>
-            </div>
-          </el-tab-pane>
-        </el-tabs>
-      </div>
+          <el-table-column 
+            prop="position" 
+            label="平均排名" 
+            min-width="100"
+            sortable="custom"
+          >
+            <template #default="{ row }">
+              <span class="table-cell-text">{{ formatPosition(row.position) }}</span>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
+
+      <el-tab-pane label="访问路径" name="path">
+        <el-table 
+          :data="tableData" 
+          style="width: 100%"
+          @sort-change="handleSortChange"
+        >
+          <el-table-column 
+            prop="path" 
+            label="页面路径" 
+            min-width="300"
+            sortable="custom"
+          >
+            <template #default="{ row }">
+              <span class="table-cell-text">{{ row.path }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column 
+            prop="clicks" 
+            label="点击次数" 
+            min-width="120"
+            sortable="custom"
+          >
+            <template #default="{ row }">
+              <span class="table-cell-text">{{ formatNumber(row.clicks) }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column 
+            prop="impressions" 
+            label="展示次数" 
+            min-width="120"
+            sortable="custom"
+          >
+            <template #default="{ row }">
+              <span class="table-cell-text">{{ formatNumber(row.impressions) }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column 
+            prop="ctr" 
+            label="点击率" 
+            min-width="100"
+            sortable="custom"
+          >
+            <template #default="{ row }">
+              <span class="table-cell-text">{{ formatPercent(row.ctr) }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column 
+            prop="position" 
+            label="平均排名" 
+            min-width="100"
+            sortable="custom"
+          >
+            <template #default="{ row }">
+              <span class="table-cell-text">{{ formatPosition(row.position) }}</span>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
+    </el-tabs>
+
+    <div class="pagination-container">
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        :page-sizes="[20, 50, 100]"
+        :total="total"
+        layout="total, sizes, prev, pager, next"
+        @size-change="handleSizeChange"
+        @current-change="handleCurrentChange"
+      />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
-import { QuestionFilled } from '@element-plus/icons-vue'
-import * as echarts from 'echarts/core'
-import { CanvasRenderer } from 'echarts/renderers'
-import { LineChart, PieChart } from 'echarts/charts'
-import {
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-  GridComponent,
-  DataZoomComponent
-} from 'echarts/components'
-
-// 注册必需的组件
-echarts.use([
-  CanvasRenderer,
-  LineChart,
-  PieChart,
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-  GridComponent,
-  DataZoomComponent
-])
+import { ref, watch, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
+import { ga4Client } from '../api/ga4'
 
 const props = defineProps({
-  data: {
-    type: Object,
-    required: true,
-    default: () => ({})
+  startDate: {
+    type: String,
+    required: true
+  },
+  endDate: {
+    type: String,
+    required: true
+  },
+  accessToken: {
+    type: String,
+    required: true
   }
 })
 
-const timeRange = ref('7d')
-const activeTab = ref('trend')
-const trendChartRef = ref(null)
-const pieChartRef = ref(null)
+const loading = ref(false)
+const activeTab = ref('query')
+const tableData = ref([])
+const currentPage = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
+const currentSort = ref({
+  prop: 'clicks',
+  order: 'descending'
+})
 
+// 处理 Tab 切换
+const handleTabChange = (tab) => {
+  currentPage.value = 1
+  fetchData()
+}
+
+// 处理排序变化
+const handleSortChange = ({ prop, order }) => {
+  currentSort.value = {
+    prop: getOrderByField(prop),
+    order: order || 'descending'
+  }
+  fetchData()
+}
+
+// 处理页码变化
+const handleCurrentChange = (page) => {
+  currentPage.value = page
+  fetchData()
+}
+
+// 处理每页条数变化
+const handleSizeChange = (size) => {
+  pageSize.value = size
+  currentPage.value = 1
+  fetchData()
+}
+
+// 获取数据
+async function fetchData() {
+  if (!isValidDate(props.startDate) || !isValidDate(props.endDate)) {
+    return
+  }
+
+  loading.value = true
+  
+  try {
+    // 使用 Search Console API
+    const searchConsoleRequest = {
+      startDate: props.startDate,
+      endDate: props.endDate,
+      dimensions: activeTab.value === 'query' ? ['query'] : ['page'],
+      rowLimit: pageSize.value,
+      startRow: (currentPage.value - 1) * pageSize.value,
+      // 根据当前排序设置
+      orderBy: [{
+        field: currentSort.value.prop || 'clicks',
+        sortOrder: currentSort.value.order === 'descending' ? 'desc' : 'asc'
+      }]
+    }
+
+    // 调用 Search Console API
+    const response = await fetch(
+      'https://www.googleapis.com/webmasters/v3/sites/siteUrl/searchAnalytics/query',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${props.accessToken}`,  // 需要从 props 或 store 获取
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(searchConsoleRequest)
+      }
+    )
+
+    const data = await response.json()
+    console.log('Search Console response:', data)
+
+    if (data.rows) {
+      tableData.value = data.rows.map(row => ({
+        query: activeTab.value === 'query' ? row.keys[0] : null,
+        path: activeTab.value === 'path' ? row.keys[0] : null,
+        clicks: row.clicks,
+        impressions: row.impressions,
+        ctr: row.ctr * 100,  // 转换为百分比
+        position: row.position
+      }))
+
+      total.value = data.totalRows || data.rows.length
+    } else {
+      tableData.value = []
+      total.value = 0
+    }
+
+  } catch (error) {
+    console.error('Error fetching Search Console data:', error)
+    ElMessage.error('获取数据失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 检查日期是否有效
+const isValidDate = (dateStr) => {
+  if (!dateStr) return false
+  if (typeof dateStr !== 'string') return false
+  if (!dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) return false
+  const date = new Date(dateStr)
+  return date instanceof Date && !isNaN(date)
+}
+
+// 获取排序字段
+const getOrderByField = (field) => {
+  // Search Console API 的排序字段
+  const validFields = ['clicks', 'impressions', 'ctr', 'position']
+  return validFields.includes(field) ? field : 'clicks'
+}
+
+// 格式化数字
 const formatNumber = (value) => {
-  if (!value && value !== 0) return '0'
-  const num = Number(value)
-  if (isNaN(num)) return '0'
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + 'M'
+  if (!value && value !== 0) return '-'
+  if (value >= 10000) {
+    return `${(value / 10000).toFixed(1)}w`
   }
-  if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'K'
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(1)}k`
   }
-  return num.toLocaleString()
+  return value.toLocaleString()
 }
 
-const formatTrend = (value) => {
-  if (!value) return '0%'
-  return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`
-}
-
-const getTrendClass = (value) => {
-  if (!value) return ''
-  return value > 0 ? 'trend-up' : 'trend-down'
-}
-
+// 格式化百分比
 const formatPercent = (value) => {
-  if (!value && value !== 0) return '0%'
-  const num = Number(value)
-  if (isNaN(num)) return '0%'
-  return `${num.toFixed(1)}%`
+  if (!value && value !== 0) return '-'
+  return `${(value * 100).toFixed(1)}%`
 }
 
-const initTrendChart = () => {
-  if (!trendChartRef.value) return
-  const chart = echarts.init(trendChartRef.value)
-  
-  const option = {
-    // ... 趋势图配置
-  }
-  
-  chart.setOption(option)
+// 格式化排名
+const formatPosition = (value) => {
+  if (!value && value !== 0) return '-'
+  return value.toFixed(1)
 }
 
-const initPieChart = () => {
-  if (!pieChartRef.value) return
-  const chart = echarts.init(pieChartRef.value)
-  
-  const option = {
-    // ... 分布图配置
-  }
-  
-  chart.setOption(option)
-}
+// 监听日期变化
+watch(
+  [() => props.startDate, () => props.endDate],
+  ([newStart, newEnd]) => {
+    if (isValidDate(newStart) && isValidDate(newEnd)) {
+      currentPage.value = 1
+      fetchData()
+    }
+  },
+  { immediate: true }
+)
 
 onMounted(() => {
-  initTrendChart()
-  initPieChart()
+  if (isValidDate(props.startDate) && isValidDate(props.endDate)) {
+    fetchData()
+  }
 })
 </script>
 
 <style scoped>
-.traffic-analysis {
-  background: var(--card-bg);
-  border-radius: 16px;
+.free-traffic-analysis {
   padding: 24px;
-  box-shadow: 0 1px 3px var(--border-color);
+  background: var(--card-bg);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
 }
 
 .analysis-header {
@@ -249,123 +352,73 @@ onMounted(() => {
 }
 
 .analysis-title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text-color);
   margin: 0;
 }
 
-.main-metrics {
-  display: flex;
-  gap: 24px;
-  margin-bottom: 24px;
+.table-cell-text {
+  color: var(--text-color);
+  font-weight: normal;
 }
 
-.metric-card {
-  background: var(--hover-bg);
-  border-radius: 12px;
-  padding: 20px;
-  flex: 1;
+:deep(.el-table) {
+  --el-table-border-color: var(--border-color);
+  --el-table-header-bg-color: var(--card-bg);
+  --el-table-row-hover-bg-color: var(--hover-bg);
+  --el-table-header-text-color: var(--text-secondary);
+  --el-table-text-color: var(--text-color);
+  border-radius: 8px;
+  overflow: hidden;
 }
 
-.metric-card.primary {
-  background: var(--primary-light);
-  border: 1px solid var(--primary-color);
-}
-
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  flex: 2;
-}
-
-.metric-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.metric-label {
-  font-size: 14px;
+:deep(.el-table th) {
+  background-color: var(--card-bg);
+  font-weight: 500;
   color: var(--text-secondary);
 }
 
-.metric-body {
+:deep(.el-table td) {
+  background-color: var(--card-bg);
+}
+
+:deep(.el-table--enable-row-hover .el-table__body tr:hover > td) {
+  background-color: var(--hover-bg);
+}
+
+:deep(.el-table .cell) {
+  white-space: nowrap;
+}
+
+.pagination-container {
+  margin-top: 20px;
   display: flex;
-  align-items: baseline;
-  gap: 12px;
-  margin-bottom: 16px;
+  justify-content: flex-end;
+  padding: 10px 0;
 }
 
-.metric-value {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--text-color);
+:deep(.el-pagination) {
+  --el-pagination-bg-color: var(--card-bg);
+  --el-pagination-hover-color: var(--primary-color);
+  --el-pagination-button-bg-color: var(--card-bg);
+  --el-pagination-button-color: var(--text-color);
+  --el-pagination-button-disabled-color: var(--text-secondary);
 }
 
-.metric-trend {
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.trend-up {
-  color: var(--success-color);
-}
-
-.trend-down {
-  color: var(--danger-color);
-}
-
-.metric-footer {
-  display: flex;
-  gap: 24px;
-}
-
-.sub-metric {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
-}
-
-.sub-metric span:first-child {
-  color: var(--text-tertiary);
-}
-
-.sub-metric span:last-child {
-  color: var(--text-color);
-  font-weight: 500;
-}
-
-.chart-container {
-  height: 300px;
-  width: 100%;
-}
-
-.keywords-table {
-  margin-top: 16px;
-}
-
-/* 响应式设计 */
-@media (max-width: 1200px) {
-  .main-metrics {
-    flex-direction: column;
-  }
-  
-  .metrics-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+:deep(.el-pagination .el-select .el-input) {
+  width: 110px;
 }
 
 @media (max-width: 768px) {
-  .metrics-grid {
-    grid-template-columns: 1fr;
+  .free-traffic-analysis {
+    padding: 16px;
   }
-  
-  .metric-footer {
-    flex-wrap: wrap;
+
+  .analysis-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
   }
 }
 </style> 

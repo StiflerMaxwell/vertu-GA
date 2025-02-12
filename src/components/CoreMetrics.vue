@@ -1,339 +1,291 @@
 <template>
-  <div class="core-metrics">
-    <div class="metrics-grid">
-      <!-- 用户数指标卡片 -->
-      <div class="metric-card">
-        <div class="metric-header">
-          <div class="metric-icon" style="background: rgba(64, 158, 255, 0.1);">
-            <el-icon style="color: #409EFF;"><User /></el-icon>
+  <div class="metrics-container" v-loading="loading">
+    <el-row :gutter="20">
+      <el-col :span="6" v-for="(metric, index) in metrics" :key="index">
+        <el-card class="metric-card" :class="metric.type">
+          <div class="metric-content">
+            <div class="metric-header">
+              <span class="metric-title">{{ metric.title }}</span>
+              <el-tooltip :content="metric.tooltip" placement="top">
+                <el-icon><QuestionFilled /></el-icon>
+              </el-tooltip>
+            </div>
+            <div class="metric-value">{{ formatValue(metric.value, metric.type) }}</div>
+            <div class="metric-trend" :class="getTrendClass(metric.trend)">
+              {{ formatTrend(metric.trend) }}
+            </div>
           </div>
-          <div class="metric-title-wrapper">
-            <h3 class="metric-title">活跃用户</h3>
-            <span class="metric-subtitle">Total Users</span>
-          </div>
-        </div>
-        <div class="metric-content">
-          <div class="metric-value">{{ formatNumber(activeUsers) }}</div>
-          <div class="metric-trend" :class="usersTrend.type">
-            <el-icon>
-              <component :is="usersTrend.type === 'increase' ? 'ArrowUp' : 'ArrowDown'" />
-            </el-icon>
-            <span>{{ usersTrend.value }}%</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 页面浏览指标卡片 -->
-      <div class="metric-card">
-        <div class="metric-header">
-          <div class="metric-icon" style="background: rgba(103, 194, 58, 0.1);">
-            <el-icon style="color: #67C23A;"><View /></el-icon>
-          </div>
-          <div class="metric-title-wrapper">
-            <h3 class="metric-title">页面浏览</h3>
-            <span class="metric-subtitle">Page Views</span>
-          </div>
-        </div>
-        <div class="metric-content">
-          <div class="metric-value">{{ formatNumber(pageViews) }}</div>
-          <div class="metric-trend" :class="pageViewsTrend.type">
-            <el-icon>
-              <component :is="pageViewsTrend.type === 'increase' ? 'ArrowUp' : 'ArrowDown'" />
-            </el-icon>
-            <span>{{ pageViewsTrend.value }}%</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 会话时长指标卡片 -->
-      <div class="metric-card">
-        <div class="metric-header">
-          <div class="metric-icon" style="background: rgba(230, 162, 60, 0.1);">
-            <el-icon style="color: #E6A23C;"><Timer /></el-icon>
-          </div>
-          <div class="metric-title-wrapper">
-            <h3 class="metric-title">平均会话时长</h3>
-            <span class="metric-subtitle">Avg. Duration</span>
-          </div>
-        </div>
-        <div class="metric-content">
-          <div class="metric-value">{{ formatDuration(sessionDuration) }}</div>
-          <div class="metric-trend" :class="durationTrend.type">
-            <el-icon>
-              <component :is="durationTrend.type === 'increase' ? 'ArrowUp' : 'ArrowDown'" />
-            </el-icon>
-            <span>{{ durationTrend.value }}%</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 跳出率指标卡片 -->
-      <div class="metric-card">
-        <div class="metric-header">
-          <div class="metric-icon" style="background: rgba(245, 108, 108, 0.1);">
-            <el-icon style="color: #F56C6C;"><Share /></el-icon>
-          </div>
-          <div class="metric-title-wrapper">
-            <h3 class="metric-title">跳出率</h3>
-            <span class="metric-subtitle">Bounce Rate</span>
-          </div>
-        </div>
-        <div class="metric-content">
-          <div class="metric-value">{{ formatPercentage(bounceRate) }}</div>
-          <div class="metric-trend" :class="bounceTrend.type">
-            <el-icon>
-              <component :is="bounceTrend.type === 'increase' ? 'ArrowUp' : 'ArrowDown'" />
-            </el-icon>
-            <span>{{ bounceTrend.value }}%</span>
-          </div>
-        </div>
-      </div>
-    </div>
+        </el-card>
+      </el-col>
+    </el-row>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
-import { User, View, Timer, Share } from '@element-plus/icons-vue'
+import { ref, watch } from 'vue'
+import { QuestionFilled } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { ga4Client } from '../api/ga4'
 
 const props = defineProps({
-  data: {
-    type: Array,
-    required: true,
-    default: () => []
+  startDate: {
+    type: String,
+    required: true
+  },
+  endDate: {
+    type: String,
+    required: true
   }
 })
 
-// 添加数据检查
-onMounted(() => {
-  console.log('CoreMetrics mounted, props data:', props.data)
-  if (props.data && props.data.length > 0) {
-    console.log('Last metric:', props.data[props.data.length - 1])
-    console.log('Metric values:', props.data[props.data.length - 1]?.metricValues)
+const loading = ref(false)
+const metrics = ref([
+  {
+    title: '访问量',
+    type: 'visits',
+    value: 0,
+    trend: 0,
+    tooltip: '时间范围内的总访问量',
+    metricName: 'screenPageViews'
+  },
+  {
+    title: '访客数',
+    type: 'users',
+    value: 0,
+    trend: 0,
+    tooltip: '时间范围内的独立访客数',
+    metricName: 'activeUsers'
+  },
+  {
+    title: '跳出率',
+    type: 'bounce',
+    value: 0,
+    trend: 0,
+    tooltip: '只浏览一个页面就离开的访问占比',
+    metricName: 'bounceRate'
+  },
+  {
+    title: '平均访问时长',
+    type: 'duration',
+    value: 0,
+    trend: 0,
+    tooltip: '访客平均停留时间',
+    metricName: 'averageSessionDuration'
   }
-})
+])
 
-// 格式化函数
-const formatNumber = (value) => {
-  console.log('formatNumber input:', value) // 调试日志
-  if (!value && value !== 0) return '0'
-  const num = Number(value)
-  if (isNaN(num)) return '0'
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + 'M'
-  }
-  if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'K'
-  }
-  return num.toLocaleString()
+// 检查日期是否有效
+const isValidDate = (dateStr) => {
+  if (!dateStr) return false
+  if (typeof dateStr !== 'string') return false
+  if (!dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) return false
+  const date = new Date(dateStr)
+  return date instanceof Date && !isNaN(date)
 }
 
-const formatDuration = (seconds) => {
-  console.log('formatDuration input:', seconds) // 调试日志
-  if (!seconds && seconds !== 0) return '0分0秒'
-  const s = Number(seconds)
-  if (isNaN(s)) return '0分0秒'
-  const minutes = Math.floor(s / 60)
-  const remainingSeconds = Math.floor(s % 60)
-  return `${minutes}分${remainingSeconds}秒`
-}
+// 获取数据
+const fetchData = async () => {
+  if (!isValidDate(props.startDate) || !isValidDate(props.endDate)) {
+    console.log('CoreMetrics: Waiting for valid dates...')
+    return
+  }
 
-const formatPercentage = (value) => {
-  console.log('formatPercentage input:', value) // 调试日志
-  if (!value && value !== 0) return '0%'
-  const v = Number(value)
-  if (isNaN(v)) return '0%'
-  return v.toFixed(1) + '%'
-}
+  loading.value = true
+  try {
+    console.log('CoreMetrics fetching data for:', props.startDate, 'to', props.endDate)
 
-// 获取当前和历史数据
-const currentData = computed(() => props.data[props.data.length - 1]?.metricValues || [])
-const previousData = computed(() => props.data[props.data.length - 2]?.metricValues || [])
+    // 计算上一时间段
+    const currentStartDate = new Date(props.startDate)
+    const currentEndDate = new Date(props.endDate)
+    const daysDiff = Math.floor((currentEndDate - currentStartDate) / (1000 * 60 * 60 * 24))
+    
+    const previousStartDate = new Date(currentStartDate)
+    previousStartDate.setDate(previousStartDate.getDate() - daysDiff)
+    const previousEndDate = new Date(currentEndDate)
+    previousEndDate.setDate(previousEndDate.getDate() - daysDiff)
 
-// 计算属性
-const activeUsers = computed(() => currentData.value[0]?.value || 0)
-const pageViews = computed(() => currentData.value[1]?.value || 0)
-const sessionDuration = computed(() => currentData.value[2]?.value || 0)
-const bounceRate = computed(() => currentData.value[3]?.value || 0)
+    const formatDate = (date) => {
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
 
-// 计算趋势
-const calculateTrend = (currentIndex) => {
-  const currentValue = currentData.value[currentIndex]?.value
-  const previousValue = previousData.value[currentIndex]?.value
+    // 获取当前和上期数据
+    const [currentResponse, previousResponse] = await Promise.all([
+      ga4Client.runReport({
+        dateRanges: [{ 
+          startDate: props.startDate, 
+          endDate: props.endDate 
+        }],
+        metrics: metrics.value.map(m => ({ name: m.metricName }))
+      }),
+      ga4Client.runReport({
+        dateRanges: [{ 
+          startDate: formatDate(previousStartDate), 
+          endDate: formatDate(previousEndDate) 
+        }],
+        metrics: metrics.value.map(m => ({ name: m.metricName }))
+      })
+    ])
 
-  if (!previousValue || previousValue === 0) return { type: 'increase', value: '0.0' }
-  
-  const current = Number(currentValue)
-  const previous = Number(previousValue)
-  
-  if (isNaN(current) || isNaN(previous)) return { type: 'increase', value: '0.0' }
-  
-  const change = ((current - previous) / previous) * 100
-  return {
-    type: change >= 0 ? 'increase' : 'decrease',
-    value: Math.abs(change).toFixed(1)
+    console.log('CoreMetrics API responses:', { current: currentResponse, previous: previousResponse })
+
+    // 处理数据
+    const current = currentResponse.rows[0]
+    const previous = previousResponse.rows[0]
+
+    // 更新指标数据
+    metrics.value = metrics.value.map((metric, index) => {
+      const currentValue = parseFloat(current.metricValues[index].value)
+      const previousValue = parseFloat(previous.metricValues[index].value)
+      const trend = previousValue ? ((currentValue - previousValue) / previousValue) * 100 : 0
+
+      return {
+        ...metric,
+        value: currentValue,
+        trend: trend
+      }
+    })
+
+    console.log('CoreMetrics processed data:', metrics.value)
+
+  } catch (error) {
+    console.error('Error fetching core metrics:', error)
+    ElMessage.error('获取核心指标失败')
+  } finally {
+    loading.value = false
   }
 }
 
-// 趋势计算
-const usersTrend = computed(() => calculateTrend(0))
-const pageViewsTrend = computed(() => calculateTrend(1))
-const durationTrend = computed(() => calculateTrend(2))
-const bounceTrend = computed(() => {
-  const trend = calculateTrend(3)
-  return {
-    type: trend.type === 'increase' ? 'decrease' : 'increase',
-    value: trend.value
+// 格式化数值
+const formatValue = (value, type) => {
+  if (type === 'bounce') {
+    return `${(value * 100).toFixed(1)}%`
   }
-})
+  if (type === 'duration') {
+    const minutes = Math.floor(value / 60)
+    const seconds = Math.floor(value % 60)
+    return `${minutes}分${seconds}秒`
+  }
+  if (value >= 10000) {
+    return `${(value / 10000).toFixed(1)}w`
+  }
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(1)}k`
+  }
+  return value.toLocaleString()
+}
 
-onMounted(() => {
-  console.log('Current metrics:', currentData.value)
-  console.log('Previous metrics:', previousData.value)
-})
+// 格式化趋势
+const formatTrend = (value) => {
+  if (!value && value !== 0) return '--'
+  return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`
+}
+
+// 获取趋势样式
+const getTrendClass = (value) => {
+  if (!value) return ''
+  return value > 0 ? 'trend-up' : 'trend-down'
+}
+
+// 监听日期变化
+watch(
+  [() => props.startDate, () => props.endDate],
+  ([newStart, newEnd], [oldStart, oldEnd]) => {
+    console.log('CoreMetrics dates changed:', {
+      newStart,
+      newEnd,
+      oldStart,
+      oldEnd
+    })
+    
+    if (isValidDate(newStart) && isValidDate(newEnd)) {
+      console.log('CoreMetrics valid dates detected, fetching data...')
+      fetchData()
+    } else {
+      console.log('CoreMetrics invalid or empty dates, skipping fetch')
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped>
-.core-metrics {
-  padding: 24px;
-}
-
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 24px;
+.metrics-container {
+  margin-bottom: 24px;
 }
 
 .metric-card {
-  background: var(--card-bg);
-  color: var(--text-color);
+  height: 120px;
   border-radius: 12px;
-  padding: 24px;
+  transition: all 0.3s;
+  background: var(--card-bg);
   border: 1px solid var(--border-color);
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 1px 3px var(--border-color);
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px var(--shadow-color);
+}
+
+.metric-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .metric-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 24px;
-}
-
-.metric-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
-}
-
-.metric-title-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  gap: 8px;
+  color: var(--text-secondary);
 }
 
 .metric-title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--text-color);
-  letter-spacing: 0.5px;
-}
-
-.metric-subtitle {
-  font-size: 12px;
-  color: var(--text-color);
-  opacity: 0.6;
-  font-weight: 400;
-}
-
-.metric-content {
-  display: flex;
-  align-items: baseline;
-  gap: 16px;
+  font-size: 14px;
+  color: var(--text-secondary);
 }
 
 .metric-value {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: 0.5px;
+  color: var(--text-color);
+  margin: 8px 0;
 }
 
 .metric-trend {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 14px;
-  font-weight: 500;
-  padding: 4px 12px;
+  font-size: 13px;
+  padding: 2px 8px;
   border-radius: 4px;
+  width: fit-content;
 }
 
-.metric-trend.increase {
-  color: #67C23A;
-  background: rgba(103, 194, 58, 0.1);
+.trend-up {
+  color: var(--success-color);
+  background: var(--success-light);
 }
 
-.metric-trend.decrease {
-  color: #F56C6C;
-  background: rgba(245, 108, 108, 0.1);
+.trend-down {
+  color: var(--danger-color);
+  background: var(--danger-light);
 }
 
-/* 为每个卡片添加不同的强调色 */
-.metric-card:nth-child(1) .metric-value {
-  color: #409EFF;
+:deep(.el-card) {
+  --el-card-bg-color: var(--card-bg);
+  --el-card-border-color: var(--border-color);
+  box-shadow: none !important;
 }
 
-.metric-card:nth-child(2) .metric-value {
-  color: #67C23A;
-}
-
-.metric-card:nth-child(3) .metric-value {
-  color: #E6A23C;
-}
-
-.metric-card:nth-child(4) .metric-value {
-  color: #F56C6C;
-}
-
-.metric-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--border-color);
-  box-shadow: 0 8px 24px var(--hover-color);
-}
-
-@media (max-width: 1400px) {
-  .metrics-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .metric-value {
-    font-size: 24px;
-  }
+:deep(.el-card__body) {
+  padding: 16px;
 }
 
 @media (max-width: 768px) {
-  .metrics-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .metric-card {
-    padding: 20px;
-  }
-
-  .metric-title {
-    font-size: 14px;
-  }
-
-  .metric-value {
-    font-size: 22px;
+  .el-col {
+    width: 100%;
+    margin-bottom: 16px;
   }
 }
 </style> 

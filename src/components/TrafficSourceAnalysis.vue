@@ -1,118 +1,316 @@
 <template>
-  <div class="source-analysis">
+  <div class="source-analysis" v-loading="loading">
     <div class="analysis-header">
       <div class="title-section">
         <h3 class="analysis-title">访问来源分析</h3>
-        <el-tag size="small" type="warning">流量</el-tag>
-      </div>
-      <div class="analysis-actions">
-        <el-radio-group v-model="viewType" size="small">
-          <el-radio-button label="table">表格</el-radio-button>
-          <el-radio-button label="chart">图表</el-radio-button>
-        </el-radio-group>
+        <el-tag size="small" type="warning">来源</el-tag>
       </div>
     </div>
 
-    <div class="analysis-content">
-      <!-- 表格视图 -->
-      <div v-show="viewType === 'table'" class="table-view">
-        <el-table :data="sourceData" style="width: 100%" :max-height="400">
-          <el-table-column prop="source" label="来源" min-width="180">
-            <template #default="{ row }">
-              <div class="source-info">
-                <el-icon :class="getSourceIcon(row.type)">
-                  <component :is="getSourceIcon(row.type)" />
-                </el-icon>
-                <span>{{ row.source }}</span>
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column prop="visits" label="访问量" width="120">
-            <template #default="{ row }">
-              {{ formatNumber(row.visits) }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="users" label="用户数" width="120">
-            <template #default="{ row }">
-              {{ formatNumber(row.users) }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="bounceRate" label="跳出率" width="100">
-            <template #default="{ row }">
-              {{ formatPercent(row.bounceRate) }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="avgDuration" label="平均时长" width="120">
-            <template #default="{ row }">
-              {{ formatDuration(row.avgDuration) }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="trend" label="趋势" width="100">
-            <template #default="{ row }">
-              <span class="metric-trend" :class="getTrendClass(row.trend)">
-                {{ formatTrend(row.trend) }}
-              </span>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
+    <div class="source-table">
+      <el-table 
+        :data="sourceData" 
+        style="width: 100%"
+        @sort-change="handleSortChange"
+      >
+        <el-table-column 
+          prop="source" 
+          label="来源" 
+          min-width="180"
+          sortable="custom"
+        >
+          <template #default="{ row }">
+            <div class="source-info">
+              <el-icon :size="20" :class="row.type">
+                <component :is="getSourceIcon(row.type)" />
+              </el-icon>
+              <span class="table-cell-text">{{ row.source }}</span>
+            </div>
+          </template>
+        </el-table-column>
 
-      <!-- 图表视图 -->
-      <div v-show="viewType === 'chart'" class="chart-view">
-        <div ref="chartRef" class="source-chart"></div>
+        <el-table-column 
+          prop="sourceMedium" 
+          label="来源/媒介" 
+          min-width="180"
+          sortable="custom"
+        >
+          <template #default="{ row }">
+            <span class="table-cell-text">{{ row.sourceMedium }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column 
+          prop="campaign" 
+          label="活动" 
+          min-width="150"
+          sortable="custom"
+        >
+          <template #default="{ row }">
+            <span class="table-cell-text">{{ row.campaign || '-' }}</span>
+          </template>
+        </el-table-column>
+        
+        <el-table-column 
+          prop="users" 
+          label="访客数" 
+          min-width="120"
+          sortable="custom"
+        >
+          <template #default="{ row }">
+            <span class="table-cell-text">{{ formatNumber(row.users) }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column 
+          prop="visits" 
+          label="访问量" 
+          min-width="120"
+          sortable="custom"
+        >
+          <template #default="{ row }">
+            <span class="table-cell-text">{{ formatNumber(row.visits) }}</span>
+          </template>
+        </el-table-column>
+        
+        <el-table-column 
+          prop="bounceRate" 
+          label="跳出率" 
+          min-width="100"
+          sortable="custom"
+        >
+          <template #default="{ row }">
+            <span class="table-cell-text">{{ formatPercent(row.bounceRate) }}</span>
+          </template>
+        </el-table-column>
+        
+        <el-table-column 
+          prop="avgDuration" 
+          label="平均访问时长" 
+          min-width="120"
+          sortable="custom"
+        >
+          <template #default="{ row }">
+            <span class="table-cell-text">{{ formatDuration(row.avgDuration) }}</span>
+          </template>
+        </el-table-column>
+      </el-table>
+      
+      <div class="pagination-container">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[20, 50, 100]"
+          :total="total"
+          layout="total, sizes, prev, pager, next"
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+        />
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick, onUnmounted } from 'vue'
-import * as echarts from 'echarts/core'
-import { CanvasRenderer } from 'echarts/renderers'
-import { TreemapChart } from 'echarts/charts'
-import {
-  TitleComponent,
-  TooltipComponent,
-  VisualMapComponent
-} from 'echarts/components'
-import {
-  Link,
-  Share,
-  Search,
-  Position,
-  ChatDotRound,
-  Connection
-} from '@element-plus/icons-vue'
-
-echarts.use([
-  CanvasRenderer,
-  TreemapChart,
-  TitleComponent,
-  TooltipComponent,
-  VisualMapComponent
-])
+import { ref, watch, computed, onMounted } from 'vue'
+import { Search, Share, Link, Position } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { ga4Client } from '../api/ga4'
 
 const props = defineProps({
-  data: {
-    type: Object,
+  startDate: {
+    type: String,
+    required: true
+  },
+  endDate: {
+    type: String,
     required: true
   }
 })
 
-const viewType = ref('table')
-const chartRef = ref(null)
-let chart = null
+const sourceData = ref([])
+const loading = ref(false)
+const currentPage = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
+const currentSort = ref({
+  prop: 'users',
+  order: 'descending'
+})
+
+// 处理页码变化
+const handleCurrentChange = (page) => {
+  currentPage.value = page
+  fetchData()
+}
+
+// 处理每页条数变化
+const handleSizeChange = (size) => {
+  pageSize.value = size
+  currentPage.value = 1
+  fetchData()
+}
+
+// 获取 GA4 API 对应的字段名
+const getOrderByField = (prop) => {
+  switch (prop) {
+    case 'visits':
+      return { metric: { metricName: 'screenPageViews' } }
+    case 'users':
+      return { metric: { metricName: 'totalUsers' } }
+    case 'bounceRate':
+      return { metric: { metricName: 'bounceRate' } }
+    case 'avgDuration':
+      return { metric: { metricName: 'averageSessionDuration' } }
+    case 'source':
+      return { dimension: { dimensionName: 'sessionSource' } }
+    case 'sourceMedium':
+      return { dimension: { dimensionName: 'sessionMedium' } }
+    case 'campaign':
+      return { dimension: { dimensionName: 'sessionCampaignName' } }
+    default:
+      return { metric: { metricName: 'screenPageViews' } }
+  }
+}
+
+// 获取数据
+async function fetchData() {
+  if (!isValidDate(props.startDate) || !isValidDate(props.endDate)) {
+    console.log('Waiting for valid dates...')
+    return
+  }
+
+  loading.value = true
+  
+  try {
+    console.log('TrafficSource fetching with dates:', props.startDate, props.endDate)
+
+    const report = {
+      dateRanges: [{ 
+        startDate: props.startDate, 
+        endDate: props.endDate 
+      }],
+      dimensions: [
+        { name: 'sessionSource' },
+        { name: 'sessionMedium' },
+        { name: 'sessionCampaignName' }
+      ],
+      metrics: [
+        { name: 'screenPageViews' },
+        { name: 'totalUsers' },
+        { name: 'bounceRate' },
+        { name: 'averageSessionDuration' }
+      ],
+      orderBys: [
+        {
+          ...getOrderByField(currentSort.value.prop),
+          desc: currentSort.value.order === 'descending'
+        }
+      ],
+      limit: pageSize.value,
+      offset: (currentPage.value - 1) * pageSize.value
+    }
+
+    console.log('TrafficSource API request:', report)
+    const response = await ga4Client.runReport(report)
+    console.log('TrafficSource API response:', response)
+
+    sourceData.value = response.rows.map(row => ({
+      type: getSourceType(row.dimensionValues[0].value),
+      source: row.dimensionValues[0].value,
+      sourceMedium: `${row.dimensionValues[0].value}/${row.dimensionValues[1].value}`,
+      campaign: row.dimensionValues[2].value,
+      visits: parseInt(row.metricValues[0].value),
+      users: parseInt(row.metricValues[1].value),
+      bounceRate: parseFloat(row.metricValues[2].value),
+      avgDuration: parseFloat(row.metricValues[3].value)
+    }))
+
+    total.value = response.rowCount || 0
+
+  } catch (error) {
+    console.error('Error fetching traffic source data:', error)
+    ElMessage.error('获取数据失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 检查日期是否有效
+const isValidDate = (dateStr) => {
+  if (!dateStr) return false
+  if (typeof dateStr !== 'string') return false
+  if (!dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) return false
+  const date = new Date(dateStr)
+  return date instanceof Date && !isNaN(date)
+}
+
+// 监听日期变化
+watch(
+  [() => props.startDate, () => props.endDate],
+  ([newStart, newEnd], [oldStart, oldEnd]) => {
+    console.log('TrafficSource dates changed:', {
+      newStart,
+      newEnd,
+      oldStart,
+      oldEnd
+    })
+    
+    if (isValidDate(newStart) && isValidDate(newEnd)) {
+      console.log('TrafficSource valid dates detected, fetching data...')
+      currentPage.value = 1 // 重置页码
+      fetchData()
+    } else {
+      console.log('TrafficSource invalid or empty dates, skipping fetch')
+    }
+  },
+  { immediate: true }
+)
+
+// 组件挂载时初始化数据
+onMounted(() => {
+  if (isValidDate(props.startDate) && isValidDate(props.endDate)) {
+    console.log('TrafficSource mounted, fetching initial data...')
+    fetchData()
+  }
+})
+
+// 获取来源图标
+const getSourceIcon = (type) => {
+  switch (type) {
+    case 'search':
+      return Search
+    case 'social':
+      return Share
+    case 'referral':
+      return Link
+    default:
+      return Position
+  }
+}
 
 // 格式化数字
-const formatNumber = (num) => {
-  if (!num && num !== 0) return '0'
-  return new Intl.NumberFormat().format(num)
+const formatNumber = (value) => {
+  if (!value && value !== 0) return '-'
+  if (value >= 10000) {
+    return `${(value / 10000).toFixed(1)}w`
+  }
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(1)}k`
+  }
+  return value.toLocaleString()
+}
+
+// 格式化趋势
+const formatTrend = (value) => {
+  if (!value && value !== 0) return '0%'
+  return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`
 }
 
 // 格式化百分比
 const formatPercent = (value) => {
   if (!value && value !== 0) return '0%'
-  return `${value.toFixed(1)}%`
+  return `${(value * 100).toFixed(1)}%`
 }
 
 // 格式化时长
@@ -123,126 +321,45 @@ const formatDuration = (seconds) => {
   return `${minutes}分${seconds % 60}秒`
 }
 
-// 格式化趋势
-const formatTrend = (value) => {
-  if (!value && value !== 0) return '0%'
-  return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`
-}
-
-// 获取趋势类名
+// 获取趋势样式
 const getTrendClass = (value) => {
   if (!value) return ''
   return value > 0 ? 'trend-up' : 'trend-down'
 }
 
-// 获取来源图标
-const getSourceIcon = (type) => {
-  const icons = {
-    search: Search,
-    social: Share,
-    direct: Link,
-    referral: Connection,
-    email: ChatDotRound,
-    other: Position
-  }
-  return icons[type] || Position
+// 获取来源类型
+const getSourceType = (source) => {
+  source = source.toLowerCase()
+  if (source.includes('google') || source.includes('baidu') || source.includes('bing')) return 'search'
+  if (source.includes('facebook') || source.includes('twitter') || source.includes('linkedin')) return 'social'
+  if (source === '(direct)') return 'direct'
+  return 'referral'
 }
 
-// 处理数据源
-const sourceData = computed(() => {
-  return props.data.sources || []
-})
-
-// 初始化图表
-const initChart = () => {
-  if (!chartRef.value) return
+// 处理排序变化
+const handleSortChange = ({ prop, order }) => {
+  console.log('Sort changed:', { prop, order })
   
-  chart = echarts.init(chartRef.value)
-  updateChart()
+  if (!prop || !order) {
+    currentSort.value = {
+      prop: 'users',
+      order: 'descending'
+    }
+  } else {
+    currentSort.value = { prop, order }
+  }
+  
+  currentPage.value = 1
+  fetchData()
 }
-
-// 更新图表
-const updateChart = () => {
-  if (!chart) return
-
-  const option = {
-    tooltip: {
-      formatter: function (info) {
-        const value = info.value
-        const trendText = value.trend > 0 ? `+${value.trend}%` : `${value.trend}%`
-        return `
-          <div style="margin: 8px 0">
-            <b>${info.name}</b><br/>
-            访问量：${formatNumber(value.visits)}<br/>
-            用户数：${formatNumber(value.users)}<br/>
-            跳出率：${formatPercent(value.bounceRate)}<br/>
-            趋势：${trendText}
-          </div>
-        `
-      }
-    },
-    series: [{
-      type: 'treemap',
-      data: sourceData.value.map(item => ({
-        name: item.source,
-        value: [item.visits, item.users, item.bounceRate, item.trend],
-        itemStyle: {
-          borderColor: '#fff',
-          borderWidth: 1,
-          gapWidth: 1
-        }
-      })),
-      label: {
-        show: true,
-        formatter: '{b}\n{c0}',
-        fontSize: 14
-      },
-      breadcrumb: {
-        show: false
-      }
-    }]
-  }
-
-  chart.setOption(option)
-}
-
-// 监听数据变化
-watch(() => props.data, updateChart, { deep: true })
-
-// 监听视图类型变化
-watch(viewType, () => {
-  if (viewType.value === 'chart') {
-    nextTick(() => {
-      initChart()
-    })
-  }
-})
-
-onMounted(() => {
-  if (viewType.value === 'chart') {
-    initChart()
-  }
-})
-
-// 处理窗口大小变化
-onMounted(() => {
-  window.addEventListener('resize', () => chart?.resize())
-})
-
-onUnmounted(() => {
-  window.removeEventListener('resize', () => chart?.resize())
-  chart?.dispose()
-})
 </script>
 
 <style scoped>
 .source-analysis {
-  background: var(--card-bg);
-  border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 1px 3px var(--border-color);
-  width: 100%;
-  overflow: hidden;
+  background: var(--card-bg);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
 }
 
 .analysis-header {
@@ -250,8 +367,6 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
-  padding: 0 0 16px;
-  border-bottom: 1px solid var(--border-color);
 }
 
 .title-section {
@@ -261,101 +376,126 @@ onUnmounted(() => {
 }
 
 .analysis-title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text-color);
   margin: 0;
 }
 
-.analysis-content {
-  width: 100%;
-}
-
-.table-view {
-  width: 100%;
-  overflow-x: auto;
+.source-table {
+  position: relative;
 }
 
 .source-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 
 .source-info .el-icon {
-  font-size: 16px;
-  width: 16px;
-  height: 16px;
+  padding: 6px;
+  border-radius: 8px;
+  background: var(--hover-bg);
 }
 
-.chart-view {
+.source-info .search {
+  color: var(--primary-color);
+}
+
+.source-info .social {
+  color: var(--success-color);
+}
+
+.source-info .referral {
+  color: var(--warning-color);
+}
+
+.source-info .direct {
+  color: var(--info-color);
+}
+
+.table-cell-text {
+  color: var(--text-color);
+  font-weight: normal;
+}
+
+.pagination-container {
   margin-top: 20px;
-  width: 100%;
-  height: 400px;
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 0;
 }
 
-.source-chart {
-  width: 100%;
-  height: 100%;
-  min-height: 400px;
+:deep(.el-pagination) {
+  --el-pagination-bg-color: var(--card-bg);
+  --el-pagination-hover-color: var(--primary-color);
+  --el-pagination-button-bg-color: var(--card-bg);
+  --el-pagination-button-color: var(--text-color);
+  --el-pagination-button-disabled-color: var(--text-secondary);
+}
+
+:deep(.el-pagination .el-select .el-input) {
+  width: 110px;
+}
+
+:deep(.el-table__body-wrapper) {
+  overflow-y: auto;
 }
 
 :deep(.el-table) {
   --el-table-border-color: var(--border-color);
-  --el-table-header-bg-color: var(--hover-bg);
-  --el-table-row-hover-bg-color: var(--hover-color);
-  background: var(--card-bg);
+  --el-table-header-bg-color: var(--card-bg);
+  --el-table-row-hover-bg-color: var(--hover-bg);
+  --el-table-header-text-color: var(--text-secondary);
+  --el-table-text-color: var(--text-color);
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 :deep(.el-table th) {
-  background-color: var(--hover-bg);
-  font-weight: 600;
-  color: var(--text-color);
+  background-color: var(--card-bg);
+  font-weight: 500;
+  color: var(--text-secondary);
 }
 
 :deep(.el-table td) {
-  color: var(--text-color);
+  background-color: var(--card-bg);
 }
 
-:deep(.el-table--striped .el-table__body tr.el-table__row--striped td) {
-  background: var(--hover-bg);
+:deep(.el-table--enable-row-hover .el-table__body tr:hover > td) {
+  background-color: var(--hover-bg);
 }
 
-.metric-trend {
-  font-weight: 500;
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-
-.trend-up {
-  color: var(--success-color);
-  background: var(--success-light);
-}
-
-.trend-down {
-  color: var(--danger-color);
-  background: var(--danger-light);
+:deep(.el-table .cell) {
+  white-space: nowrap;
 }
 
 @media (max-width: 768px) {
   .source-analysis {
     padding: 16px;
   }
-  
+
   .analysis-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 16px;
-    padding-bottom: 12px;
+    gap: 12px;
   }
-  
-  .analysis-actions {
-    width: 100%;
+
+  .source-table {
+    margin-top: 12px;
+    overflow-x: auto;
   }
-  
-  .chart-view,
-  .source-chart {
-    height: 300px;
-  }
+}
+
+:deep(.el-table th.is-sortable) {
+  cursor: pointer;
+}
+
+:deep(.el-table th.ascending .sort-caret.ascending) {
+  border-bottom-color: var(--primary-color);
+}
+
+:deep(.el-table th.descending .sort-caret.descending) {
+  border-top-color: var(--primary-color);
 }
 </style> 

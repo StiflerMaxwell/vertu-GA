@@ -5,42 +5,79 @@
 <script setup>
 import { ref, onMounted, watch, onUnmounted } from 'vue'
 import * as echarts from 'echarts'
+import { ga4Client } from '../api/ga4'
+import { ElMessage } from 'element-plus'
 
 const props = defineProps({
-  data: {
-    type: Array,
-    required: true,
-    default: () => []
+  startDate: {
+    type: String,
+    required: true
+  },
+  endDate: {
+    type: String,
+    required: true
   }
 })
 
 const chartRef = ref(null)
+const loading = ref(false)
+const chartData = ref([])
 let chart = null
+
+// 获取趋势数据
+const fetchData = async () => {
+  loading.value = true
+  try {
+    console.log('TrendChart fetching data for:', props.startDate, 'to', props.endDate)
+    
+    const report = {
+      dateRanges: [{ 
+        startDate: props.startDate, 
+        endDate: props.endDate 
+      }],
+      dimensions: [{ name: 'date' }],
+      metrics: [
+        { name: 'activeUsers' },
+        { name: 'screenPageViews' },
+        { name: 'averageSessionDuration' },
+        { name: 'bounceRate' }
+      ],
+      orderBys: [
+        {
+          dimension: { dimensionName: 'date' },
+          desc: false
+        }
+      ]
+    }
+
+    const response = await ga4Client.runReport(report)
+    console.log('TrendChart API response:', response)
+    chartData.value = response.rows || []
+    updateChart()
+  } catch (error) {
+    console.error('Error fetching trend data:', error)
+    ElMessage.error('获取趋势数据失败')
+  } finally {
+    loading.value = false
+  }
+}
 
 const initChart = () => {
   if (!chartRef.value) return
   chart = echarts.init(chartRef.value)
-  updateChart()
 }
 
 const updateChart = () => {
-  if (!chart || !props.data || props.data.length === 0) {
+  if (!chart || !chartData.value.length) {
     console.warn('图表或数据无效')
     return
   }
 
-  console.log('TrendChart 收到的数据:', props.data)
-
   // 处理数据
-  const dates = props.data.map(item => {
+  const dates = chartData.value.map(item => {
     const date = item.dimensionValues[0].value
     // 转换日期格式为 MM/DD
-    const [year, month, day] = [
-      date.substring(0, 4),
-      date.substring(4, 6),
-      date.substring(6, 8)
-    ]
-    return `${month}/${day}`
+    return `${date.substring(4, 6)}/${date.substring(6, 8)}`
   })
 
   const option = {
@@ -157,7 +194,7 @@ const updateChart = () => {
     series: [
       {
         name: '活跃用户',
-        data: props.data.map(item => Number(item.metricValues[0].value)),
+        data: chartData.value.map(item => Number(item.metricValues[0].value)),
         type: 'line',
         smooth: true,
         yAxisIndex: 0,
@@ -167,7 +204,7 @@ const updateChart = () => {
       },
       {
         name: '页面浏览量',
-        data: props.data.map(item => Number(item.metricValues[1].value)),
+        data: chartData.value.map(item => Number(item.metricValues[1].value)),
         type: 'line',
         smooth: true,
         yAxisIndex: 0,
@@ -177,7 +214,7 @@ const updateChart = () => {
       },
       {
         name: '平均会话时长(分钟)',
-        data: props.data.map(item => Number(item.metricValues[2].value) / 60),
+        data: chartData.value.map(item => Number(item.metricValues[2].value) / 60),
         type: 'line',
         smooth: true,
         yAxisIndex: 1,
@@ -187,7 +224,7 @@ const updateChart = () => {
       },
       {
         name: '跳出率(%)',
-        data: props.data.map(item => Number(item.metricValues[3].value) * 100),
+        data: chartData.value.map(item => Number(item.metricValues[3].value) * 100),
         type: 'line',
         smooth: true,
         yAxisIndex: 2,
@@ -201,9 +238,23 @@ const updateChart = () => {
   chart.setOption(option)
 }
 
-watch(() => props.data, () => {
-  updateChart()
-}, { deep: true })
+// 监听日期变化
+watch(
+  [() => props.startDate, () => props.endDate],
+  ([newStart, newEnd], [oldStart, oldEnd]) => {
+    console.log('TrendChart dates changed:', {
+      newStart,
+      newEnd,
+      oldStart,
+      oldEnd
+    })
+    
+    if (newStart && newEnd) {
+      fetchData()
+    }
+  },
+  { immediate: true }
+)
 
 onMounted(() => {
   initChart()
