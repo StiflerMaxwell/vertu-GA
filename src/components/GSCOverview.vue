@@ -1,9 +1,6 @@
 <template>
-  <div class="gsc-overview">
-    <div v-if="loading" class="loading-state">
-      <el-skeleton :rows="4" animated />
-    </div>
-    <div v-else-if="!overviewData?.length" class="no-data">
+  <div class="gsc-overview card-container">
+    <div v-if="!overviewData?.length" class="no-data">
       Waiting for data...
     </div>
     
@@ -17,7 +14,7 @@
             >
               <div class="header-with-icon">
                 <el-icon><Check /></el-icon>
-                <span class="header-text">Total clicks</span>
+                Total clicks
                 <el-icon><QuestionFilled /></el-icon>
               </div>
             </el-tooltip>
@@ -32,7 +29,7 @@
             >
               <div class="header-with-icon">
                 <el-icon><Check /></el-icon>
-                <span class="header-text">Total impressions</span>
+                Total impressions
                 <el-icon><QuestionFilled /></el-icon>
               </div>
             </el-tooltip>
@@ -47,7 +44,7 @@
             >
               <div class="header-with-icon">
                 <el-icon><Check /></el-icon>
-                <span class="header-text">Average CTR</span>
+                Average CTR
                 <el-icon><QuestionFilled /></el-icon>
               </div>
             </el-tooltip>
@@ -62,7 +59,7 @@
             >
               <div class="header-with-icon">
                 <el-icon><Check /></el-icon>
-                <span class="header-text">Average position</span>
+                Average position
                 <el-icon><QuestionFilled /></el-icon>
               </div>
             </el-tooltip>
@@ -86,15 +83,11 @@ const props = defineProps({
     type: Array,
     required: true,
     default: () => []
-  },
-  loading: {
-    type: Boolean,
-    default: false
   }
 })
 
-let chart = null
 const chartRef = ref(null)
+let chart = null
 
 // 计算关键指标
 const totalClicks = computed(() => {
@@ -120,66 +113,77 @@ const averagePosition = computed(() => {
 })
 
 const initChart = () => {
-  // 确保DOM元素和数据都存在
-  if (!chartRef.value || !props.overviewData?.length) {
-    return
-  }
-
-  try {
-    // 如果已存在图表实例，先销毁
-    if (chart) {
-      chart.dispose()
-    }
-
-    // 创建新的图表实例
+  if (!chartRef.value || !props.overviewData?.length) return
+  
+  if (!chart) {
     chart = echarts.init(chartRef.value)
-    
-    const isDark = document.documentElement.classList.contains('dark')
-    const textColor = isDark ? '#ffffff' : '#333333'
-    const axisLineColor = isDark ? 'rgba(255, 255, 255, 0.1)' : '#dcdfe6'
-
-    const option = {
-      backgroundColor: 'transparent',
-      tooltip: {
-        trigger: 'axis',
-        axisPointer: {
-          type: 'cross'
+  }
+  
+  // 判断是否为暗黑模式
+  const isDark = document.documentElement.classList.contains('dark')
+  const textColor = isDark ? '#ffffff' : '#000000'
+  const axisLineColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+  
+  const option = {
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'cross'
+      },
+      formatter: function(params) {
+        const date = new Date(params[0].axisValue).toLocaleDateString('en-GB', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'short'
+        })
+        let result = `${date}<br/>`
+        params.forEach(param => {
+          let value = typeof param.value === 'number' ? param.value.toFixed(2) : param.value
+          let color = param.color
+          let marker = `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:${color};"></span>`
+          result += `${marker}${param.seriesName}: ${value}<br/>`
+        })
+        return result
+      }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true,
+      backgroundColor: 'transparent'
+    },
+    legend: {
+      data: ['Clicks', 'Impressions', 'CTR', 'Position'],
+      top: 0,
+      textStyle: {
+        color: textColor
+      }
+    },
+    xAxis: {
+      type: 'category',
+      boundaryGap: false,
+      data: props.overviewData.map(item => item.date),
+      axisLine: {
+        lineStyle: {
+          color: axisLineColor
+        }
+      },
+      axisLabel: {
+        color: textColor,
+        fontSize: 12
+      }
+    },
+    yAxis: [
+      {
+        type: 'value',
+        name: 'Clicks & Impressions',
+        splitLine: {
+          show: false
         },
-        formatter: function(params) {
-          const date = new Date(params[0].axisValue).toLocaleDateString('en-GB', {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'short'
-          })
-          let result = `${date}<br/>`
-          params.forEach(param => {
-            let value = typeof param.value === 'number' ? param.value.toFixed(2) : param.value
-            let color = param.color
-            let marker = `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:${color};"></span>`
-            result += `${marker}${param.seriesName}: ${value}<br/>`
-          })
-          return result
-        }
-      },
-      grid: {
-        left: '3%',
-        right: '4%',
-        bottom: '3%',
-        containLabel: true,
-        backgroundColor: 'transparent'
-      },
-      legend: {
-        data: ['Clicks', 'Impressions', 'CTR', 'Position'],
-        top: 0,
-        textStyle: {
-          color: textColor
-        }
-      },
-      xAxis: {
-        type: 'category',
-        boundaryGap: false,
-        data: props.overviewData.map(item => item.date),
         axisLine: {
+          show: true,
           lineStyle: {
             color: axisLineColor
           }
@@ -187,104 +191,81 @@ const initChart = () => {
         axisLabel: {
           color: textColor,
           fontSize: 12
+        },
+        nameTextStyle: {
+          color: textColor,
+          fontSize: 12,
+          padding: [0, 0, 0, 20]
         }
       },
-      yAxis: [
-        {
-          type: 'value',
-          name: 'Clicks & Impressions',
-          splitLine: {
-            show: false
-          },
-          axisLine: {
-            show: true,
-            lineStyle: {
-              color: axisLineColor
-            }
-          },
-          axisLabel: {
-            color: textColor,
-            fontSize: 12
-          },
-          nameTextStyle: {
-            color: textColor,
-            fontSize: 12,
-            padding: [0, 0, 0, 20]
+      {
+        type: 'value',
+        name: 'CTR & Position',
+        splitLine: {
+          show: false
+        },
+        axisLine: {
+          show: true,
+          lineStyle: {
+            color: axisLineColor
           }
         },
-        {
-          type: 'value',
-          name: 'CTR & Position',
-          splitLine: {
-            show: false
-          },
-          axisLine: {
-            show: true,
-            lineStyle: {
-              color: axisLineColor
-            }
-          },
-          axisLabel: {
-            color: textColor,
-            fontSize: 12,
-            formatter: function(value) {
-              return value.toFixed(2)
-            }
-          },
-          nameTextStyle: {
-            color: textColor,
-            fontSize: 12,
-            padding: [0, 20, 0, 0]
+        axisLabel: {
+          color: textColor,
+          fontSize: 12,
+          formatter: function(value) {
+            return value.toFixed(2)
           }
+        },
+        nameTextStyle: {
+          color: textColor,
+          fontSize: 12,
+          padding: [0, 20, 0, 0]
         }
-      ],
-      series: [
-        {
-          name: 'Clicks',
-          type: 'line',
-          data: props.overviewData.map(item => item.clicks),
-          smooth: true,
-          itemStyle: { color: '#4CAF50' }
-        },
-        {
-          name: 'Impressions',
-          type: 'line',
-          data: props.overviewData.map(item => item.impressions),
-          smooth: true,
-          itemStyle: { color: '#2196F3' }
-        },
-        {
-          name: 'CTR',
-          type: 'line',
-          yAxisIndex: 1,
-          data: props.overviewData.map(item => Number(item.ctr).toFixed(2)),
-          smooth: true,
-          itemStyle: { color: '#FF5722' }
-        },
-        {
-          name: 'Position',
-          type: 'line',
-          yAxisIndex: 1,
-          data: props.overviewData.map(item => Number(item.position).toFixed(2)),
-          smooth: true,
-          itemStyle: { color: '#9C27B0' }
-        }
-      ]
-    }
-
-    chart.setOption(option)
-  } catch (error) {
-    console.error('Chart initialization failed:', error)
+      }
+    ],
+    series: [
+      {
+        name: 'Clicks',
+        type: 'line',
+        data: props.overviewData.map(item => item.clicks),
+        smooth: true,
+        itemStyle: { color: '#4CAF50' }
+      },
+      {
+        name: 'Impressions',
+        type: 'line',
+        data: props.overviewData.map(item => item.impressions),
+        smooth: true,
+        itemStyle: { color: '#2196F3' }
+      },
+      {
+        name: 'CTR',
+        type: 'line',
+        yAxisIndex: 1,
+        data: props.overviewData.map(item => Number(item.ctr).toFixed(2)),
+        smooth: true,
+        itemStyle: { color: '#FF5722' }
+      },
+      {
+        name: 'Position',
+        type: 'line',
+        yAxisIndex: 1,
+        data: props.overviewData.map(item => Number(item.position).toFixed(2)),
+        smooth: true,
+        itemStyle: { color: '#9C27B0' }
+      }
+    ]
   }
+  
+  chart.setOption(option)
 }
 
-// 监听数据变化
 watch(() => props.overviewData, (newData) => {
-  if (newData?.length) {
-    nextTick(() => {
-      initChart()
-    })
-  }
+  console.log('Overview data received:', newData)
+  nextTick(() => {
+    initChart()
+  })
 }, { deep: true })
 
 // 监听主题变化
@@ -292,30 +273,24 @@ watch(
   () => document.documentElement.classList.contains('dark'),
   () => {
     nextTick(() => {
+      chart?.dispose()
+      chart = echarts.init(chartRef.value)
       initChart()
     })
   }
 )
 
-// 监听窗口大小变化
-const handleResize = () => {
-  if (chart) {
-    chart.resize()
-  }
-}
-
 onMounted(() => {
-  window.addEventListener('resize', handleResize)
-  // 确保数据存在时才初始化图表
-  if (props.overviewData?.length) {
-    nextTick(() => {
-      initChart()
-    })
-  }
+  initChart()
+  window.addEventListener('resize', () => {
+    chart?.resize()
+  })
 })
 
 onUnmounted(() => {
-  window.removeEventListener('resize', handleResize)
+  window.removeEventListener('resize', () => {
+    chart?.resize()
+  })
   if (chart) {
     chart.dispose()
     chart = null
@@ -326,6 +301,13 @@ onUnmounted(() => {
 <style scoped>
 .gsc-overview {
   margin: 16px 0;
+}
+
+.card-container {
+  background: var(--el-bg-color);
+  border-radius: 8px;
+  box-shadow: var(--el-box-shadow-lighter);
+  padding: 20px;
 }
 
 .metric-cards {
@@ -344,7 +326,7 @@ onUnmounted(() => {
 
 .metric-card:hover {
   transform: translateY(-2px);
-  box-shadow: var(--el-box-shadow-light);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .header-with-icon {
@@ -383,9 +365,8 @@ onUnmounted(() => {
   width: 100%;
   height: 400px;
   margin-top: 20px;
-  background-color: var(--el-bg-color);
+  background-color: transparent;
   border-radius: 8px;
-  box-shadow: var(--el-box-shadow-lighter);
 }
 
 .no-data {
@@ -393,10 +374,6 @@ onUnmounted(() => {
   padding: 40px;
   color: var(--el-text-color-secondary);
   font-size: 14px;
-}
-
-.loading-state {
-  padding: 20px;
 }
 
 :deep(.el-tooltip__trigger) {
