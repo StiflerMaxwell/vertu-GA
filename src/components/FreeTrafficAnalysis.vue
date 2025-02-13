@@ -1,155 +1,101 @@
 <template>
-  <div class="free-traffic-analysis" v-loading="loading">
+  <div class="free-traffic-analysis">
     <div class="analysis-header">
       <div class="title-section">
         <h3 class="analysis-title">免费流量分析</h3>
         <el-tag size="small" type="success">SEO</el-tag>
       </div>
+      <div class="date-picker-section">
+        <GSCDatePicker
+          :startDate="localStartDate"
+          :endDate="localEndDate"
+          @update:startDate="localStartDate = $event"
+          @update:endDate="localEndDate = $event"
+          @change="handleDateChange"
+        />
+      </div>
     </div>
 
-    <div class="metrics-overview">
-      <el-row :gutter="20">
-        <el-col :xs="12" :sm="12" :md="6" v-for="metric in metricsData" :key="metric.key">
-          <el-card shadow="hover" class="metric-card">
-            <div class="metric-content">
-              <div class="metric-title">{{ metric.label }}</div>
-              <div class="metric-value">{{ formatMetricValue(metric) }}</div>
-              <div class="metric-trend" :class="getTrendClass(metric.trend)">
-                {{ formatTrend(metric.trend) }}
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
+    <!-- 添加调试信息 -->
+    <div v-if="datePerformanceData.length === 0" class="no-data">
+      No overview data available
     </div>
 
-    <el-tabs v-model="activeTab" class="traffic-tabs" @tab-change="handleTabChange">
+    <GSCOverview 
+      :overview-data="datePerformanceData"
+      :loading="loading"
+    />
+
+    <el-tabs v-model="activeTab" class="custom-tabs">
       <el-tab-pane label="搜索词" name="query">
-        <el-table 
-          :data="tableData" 
-          style="width: 100%"
-          @sort-change="handleSortChange"
-        >
-          <el-table-column 
-            prop="query" 
-            label="搜索词" 
-            min-width="300"
-            sortable="custom"
-          >
-            <template #default="{ row }">
-              <span class="table-cell-text">{{ row.query || '(not set)' }}</span>
-            </template>
-          </el-table-column>
-
-          <el-table-column 
-            prop="clicks" 
-            label="点击次数" 
-            min-width="120"
-            sortable="custom"
-          >
-            <template #default="{ row }">
-              <span class="table-cell-text">{{ formatNumber(row.clicks) }}</span>
-            </template>
-          </el-table-column>
-
-          <el-table-column 
-            prop="impressions" 
-            label="展示次数" 
-            min-width="120"
-            sortable="custom"
-          >
-            <template #default="{ row }">
-              <span class="table-cell-text">{{ formatNumber(row.impressions) }}</span>
-            </template>
-          </el-table-column>
-
-          <el-table-column 
-            prop="ctr" 
-            label="点击率" 
-            min-width="100"
-            sortable="custom"
-          >
-            <template #default="{ row }">
-              <span class="table-cell-text">{{ formatPercent(row.ctr) }}</span>
-            </template>
-          </el-table-column>
-
-          <el-table-column 
-            prop="position" 
-            label="平均排名" 
-            min-width="100"
-            sortable="custom"
-          >
-            <template #default="{ row }">
-              <span class="table-cell-text">{{ formatPosition(row.position) }}</span>
-            </template>
-          </el-table-column>
-        </el-table>
+        <template #label>
+          <span>搜索词</span>
+        </template>
       </el-tab-pane>
-
-      <el-tab-pane label="访问路径" name="path">
-        <el-table 
-          :data="tableData" 
-          style="width: 100%"
-          @sort-change="handleSortChange"
-        >
-          <el-table-column 
-            prop="path" 
-            label="页面路径" 
-            min-width="300"
-            sortable="custom"
-          >
-            <template #default="{ row }">
-              <span class="table-cell-text">{{ row.path }}</span>
-            </template>
-          </el-table-column>
-
-          <el-table-column 
-            prop="clicks" 
-            label="点击次数" 
-            min-width="120"
-            sortable="custom"
-          >
-            <template #default="{ row }">
-              <span class="table-cell-text">{{ formatNumber(row.clicks) }}</span>
-            </template>
-          </el-table-column>
-
-          <el-table-column 
-            prop="impressions" 
-            label="展示次数" 
-            min-width="120"
-            sortable="custom"
-          >
-            <template #default="{ row }">
-              <span class="table-cell-text">{{ formatNumber(row.impressions) }}</span>
-            </template>
-          </el-table-column>
-
-          <el-table-column 
-            prop="ctr" 
-            label="点击率" 
-            min-width="100"
-            sortable="custom"
-          >
-            <template #default="{ row }">
-              <span class="table-cell-text">{{ formatPercent(row.ctr) }}</span>
-            </template>
-          </el-table-column>
-
-          <el-table-column 
-            prop="position" 
-            label="平均排名" 
-            min-width="100"
-            sortable="custom"
-          >
-            <template #default="{ row }">
-              <span class="table-cell-text">{{ formatPosition(row.position) }}</span>
-            </template>
-          </el-table-column>
-        </el-table>
+      <el-tab-pane label="页面" name="page">
+        <template #label>
+          <span>页面</span>
+        </template>
+      </el-tab-pane>
+      <el-tab-pane label="国家" name="country">
+        <template #label>
+          <span>国家</span>
+        </template>
+      </el-tab-pane>
+      <el-tab-pane label="设备" name="device">
+        <template #label>
+          <span>设备</span>
+        </template>
+      </el-tab-pane>
+      <el-tab-pane label="日期" name="date">
+        <template #label>
+          <span>日期</span>
+        </template>
       </el-tab-pane>
     </el-tabs>
+
+    <el-table
+      v-loading="loading"
+      :data="paginatedData"
+      style="width: 100%"
+      :default-sort="{ prop: 'clicks', order: 'descending' }"
+      class="custom-table"
+    >
+      <el-table-column
+        prop="displayValue"
+        :label="getColumnLabel()"
+        min-width="300"
+        show-overflow-tooltip
+      />
+      <el-table-column 
+        prop="clicks" 
+        label="点击次数" 
+        min-width="120" 
+        sortable 
+        align="right"
+      />
+      <el-table-column
+        prop="impressions"
+        label="展示次数"
+        min-width="120"
+        sortable
+        align="right"
+      />
+      <el-table-column 
+        prop="ctr" 
+        label="点击率" 
+        min-width="100" 
+        sortable 
+        align="right"
+      />
+      <el-table-column 
+        prop="position" 
+        label="平均排名" 
+        min-width="100" 
+        sortable 
+        align="right"
+      />
+    </el-table>
 
     <div class="pagination-container">
       <el-pagination
@@ -162,371 +108,319 @@
         @current-change="handleCurrentChange"
       />
     </div>
-
-    <el-empty v-if="!loading && tableData.length === 0" description="暂无数据" />
   </div>
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { ga4Client } from '../api/ga4'
-import { debounce } from 'lodash-es'
-import { fetchGscData, testGSCSetup } from '../api/gsc'
+import { fetchSearchData } from '../api/gsc'
+import { COUNTRY_CODES } from '../api/gsc'
+import GSCOverview from './GSCOverview.vue'
+import GSCDatePicker from './GSCDatePicker.vue'
+import { getDefaultDateRange } from '../utils/dateUtils'
 
 const props = defineProps({
-  startDate: {
-    type: String,
-    required: true
-  },
-  endDate: {
-    type: String,
-    required: true
-  },
-  accessToken: {
-    type: String,
-    required: true
-  },
   siteUrl: {
     type: String,
-    required: true
+    required: true,
+    default: import.meta.env.VITE_GSC_SITE_URL
   }
 })
 
-const loading = ref(false)
 const activeTab = ref('query')
 const tableData = ref([])
 const currentPage = ref(1)
 const pageSize = ref(20)
-const total = ref(0)
-const metricsData = ref([])
-const currentSort = ref({
-  prop: 'clicks',
-  order: 'descending'
+const loading = ref(false)
+
+// 使用本地的响应式变量
+const localStartDate = ref('')
+const localEndDate = ref('')
+
+// 组件挂载时设置默认日期
+onMounted(() => {
+  const { startDate, endDate } = getDefaultDateRange()
+  localStartDate.value = startDate
+  localEndDate.value = endDate
+  fetchData()
 })
 
-// 修改 API URL，需要替换实际的网站 URL
-const SITE_URL = encodeURIComponent('https://vertu.com');
-
-// 处理 Tab 切换
-const handleTabChange = () => {
-  currentPage.value = 1
-  fetchData()
-}
-
-// 处理排序变化
-const handleSortChange = ({ prop, order }) => {
-  currentSort.value = {
-    prop: getOrderByField(prop),
-    order: order || 'descending'
+// 监听日期变化
+watch([localStartDate, localEndDate], async ([newStart, newEnd], [oldStart, oldEnd]) => {
+  if (newStart && newEnd && (newStart !== oldStart || newEnd !== oldEnd)) {
+    loading.value = true
+    try {
+      await fetchData()
+    } finally {
+      loading.value = false
+    }
   }
-  fetchData()
-}
+})
 
-// 处理页码变化
+// 添加 total 计算属性
+const total = computed(() => tableData.value.length)
+
+// 计算分页后的数据
+const paginatedData = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return tableData.value.slice(start, end).map(item => ({
+    ...item,
+    position: typeof item.position === 'number' ? item.position.toFixed(2) : item.position
+  }))
+})
+
+// 处理页码改变
 const handleCurrentChange = (page) => {
   currentPage.value = page
-  fetchData()
 }
 
-// 处理每页条数变化
-const handleSizeChange = (size) => {
-  pageSize.value = size
-  currentPage.value = 1
-  fetchData()
+// 获取列标签
+const getColumnLabel = () => {
+  const labels = {
+    query: '搜索词',
+    page: '页面',
+    country: '国家',
+    device: '设备',
+    date: '日期'
+  }
+  return labels[activeTab.value] || ''
 }
 
-// 使用防抖处理搜索
-const fetchData = debounce(async () => {
-  if (!isValidDate(props.startDate) || !isValidDate(props.endDate)) {
+// 获取数据
+async function fetchData() {
+  if (!localStartDate.value || !localEndDate.value) {
+    console.warn('Invalid dates:', { startDate: localStartDate.value, endDate: localEndDate.value })
     return
   }
 
   loading.value = true
-  
   try {
-    // 使用 Search Console API
-    const searchConsoleRequest = {
-      startDate: props.startDate,
-      endDate: props.endDate,
-      dimensions: activeTab.value === 'query' ? ['query'] : ['page'],
-      rowLimit: pageSize.value,
-      startRow: (currentPage.value - 1) * pageSize.value,
-      // 根据当前排序设置
-      orderBy: [{
-        field: currentSort.value.prop || 'clicks',
-        sortOrder: currentSort.value.order === 'descending' ? 'desc' : 'asc'
-      }]
-    }
-
-    // 调用 Search Console API - 这里需要修改
-    const response = await fetch(
-      `https://www.googleapis.com/webmasters/v3/sites/${SITE_URL}/searchAnalytics/query`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${props.accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(searchConsoleRequest)
-      }
-    )
-
-    const data = await response.json()
+    const response = await fetchSearchData(localStartDate.value, localEndDate.value, activeTab.value)
     
-    if (!response.ok) {
-      throw new Error(data.error?.message || '请求失败')
+    if (!response.rows || response.rows.length === 0) {
+      tableData.value = []
+      ElMessage.warning('所选日期范围内没有数据')
+      return
     }
 
-    if (data.rows) {
-      tableData.value = data.rows.map(row => ({
-        query: activeTab.value === 'query' ? row.keys[0] : null,
-        path: activeTab.value === 'path' ? row.keys[0] : null,
+    tableData.value = response.rows.map(row => {
+      let displayValue = row.keys[0]
+      
+      if (activeTab.value === 'country') {
+        displayValue = COUNTRY_CODES[displayValue.toUpperCase()] || displayValue
+      }
+
+      return {
+        displayValue,
         clicks: row.clicks,
         impressions: row.impressions,
-        ctr: row.ctr,  // 已经是小数形式，不需要乘 100
-        position: row.position
-      }))
-
-      total.value = data.totalRows || data.rows.length
-      updateMetricsData(data)
-    } else {
-      tableData.value = []
-      total.value = 0
-    }
+        ctr: `${(row.ctr * 100).toFixed(2)}%`,  // 百分比格式化
+        position: row.position.toFixed(2)  // 在这里已经格式化了位置
+      }
+    })
+    currentPage.value = 1
   } catch (error) {
-    console.error('Error fetching Search Console data:', error)
-    ElMessage.error(error.message || '获取数据失败')
+    console.error('Data fetch error:', error)
+    ElMessage.error('数据获取失败，请重试')
+    tableData.value = []
   } finally {
     loading.value = false
   }
-}, 300)
-
-// 检查日期是否有效
-const isValidDate = (dateStr) => {
-  if (!dateStr) return false
-  if (typeof dateStr !== 'string') return false
-  if (!dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) return false
-  const date = new Date(dateStr)
-  return date instanceof Date && !isNaN(date)
 }
 
-// 获取排序字段
-const getOrderByField = (field) => {
-  // Search Console API 的排序字段
-  const validFields = ['clicks', 'impressions', 'ctr', 'position']
-  return validFields.includes(field) ? field : 'clicks'
+// 监听 Tab 变化
+watch(activeTab, () => {
+  fetchData()
+})
+
+// 处理每页条数改变
+const handleSizeChange = (size) => {
+  pageSize.value = size
+  currentPage.value = 1
 }
 
-// 格式化数字
-const formatNumber = (value) => {
-  if (!value && value !== 0) return '-'
-  if (value >= 10000) {
-    return `${(value / 10000).toFixed(1)}w`
-  }
-  if (value >= 1000) {
-    return `${(value / 1000).toFixed(1)}k`
-  }
-  return value.toLocaleString()
-}
+// 获取日期性能数据
+const datePerformanceData = ref([])
 
-// 格式化百分比
-const formatPercent = (value) => {
-  if (!value && value !== 0) return '-'
-  return `${value.toFixed(1)}%`
-}
-
-// 格式化排名
-const formatPosition = (value) => {
-  if (!value && value !== 0) return '-'
-  return value.toFixed(1)
-}
-
-// 更新概览数据
-const updateMetricsData = (data) => {
-  metricsData.value = [
-    {
-      key: 'clicks',
-      label: '总点击',
-      value: data.totals?.clicks || 0,
-      type: 'number',
-      trend: calculateTrend(data, 'clicks')
-    },
-    {
-      key: 'impressions',
-      label: '总展示',
-      value: data.totals?.impressions || 0,
-      type: 'number',
-      trend: calculateTrend(data, 'impressions')
-    },
-    {
-      key: 'ctr',
-      label: '平均点击率',
-      value: data.totals?.ctr || 0,
-      type: 'percent',
-      trend: calculateTrend(data, 'ctr')
-    },
-    {
-      key: 'position',
-      label: '平均排名',
-      value: data.totals?.position || 0,
-      type: 'position',
-      trend: calculateTrend(data, 'position')
-    }
-  ]
-}
-
-// 计算趋势
-const calculateTrend = (data, metric) => {
-  // 实现趋势计算逻辑
-  return 0
-}
-
-// 格式化概览数据
-const formatMetricValue = (metric) => {
-  switch (metric.type) {
-    case 'number':
-      return formatNumber(metric.value)
-    case 'percent':
-      return formatPercent(metric.value)
-    case 'position':
-      return formatPosition(metric.value)
-    default:
-      return metric.value
-  }
-}
-
-// 格式化趋势
-const formatTrend = (trend) => {
-  if (trend === 0) return '持平'
-  if (trend > 0) return '上升'
-  if (trend < 0) return '下降'
-}
-
-// 获取趋势类
-const getTrendClass = (trend) => {
-  if (trend === 0) return 'neutral'
-  if (trend > 0) return 'up'
-  if (trend < 0) return 'down'
-}
-
-// 监听日期变化
-watch(
-  [() => props.startDate, () => props.endDate],
-  ([newStart, newEnd]) => {
-    if (isValidDate(newStart) && isValidDate(newEnd)) {
-      currentPage.value = 1
-      fetchData()
-    }
-  },
-  { immediate: true }
-)
-
-onMounted(async () => {
+// 获取日期性能数据
+async function fetchDatePerformanceData() {
+  if (!localStartDate.value || !localEndDate.value) return
+  
   try {
-    const authSuccess = await testGSCSetup()
-    if (!authSuccess) {
-      ElMessage.error('Search Console API 认证失败')
+    console.log('Fetching overview data for:', localStartDate.value, localEndDate.value)
+    const response = await fetchSearchData(
+      localStartDate.value,
+      localEndDate.value,
+      'date'
+    )
+    
+    if (!response?.rows?.length) {
+      console.warn('No overview data received')
+      datePerformanceData.value = []
       return
     }
+
+    // 确保数据格式正确
+    datePerformanceData.value = response.rows.map(row => ({
+      date: row.keys[0],
+      clicks: Number(row.clicks),
+      impressions: Number(row.impressions),
+      ctr: Number(row.ctr),
+      position: Number(row.position)
+    }))
     
-    if (isValidDate(props.startDate) && isValidDate(props.endDate)) {
-      fetchData()
-    }
+    console.log('Processed overview data:', datePerformanceData.value)
   } catch (error) {
-    console.error('Setup error:', error)
-    ElMessage.error('初始化失败')
+    console.error('Date performance data fetch error:', error)
+    ElMessage.error('获取日期性能数据失败')
+    datePerformanceData.value = []
+  }
+}
+
+// 处理日期变化
+const handleDateChange = async () => {
+  if (!localStartDate.value || !localEndDate.value) return
+  
+  loading.value = true
+  try {
+    console.log('Date changed, fetching new data...')
+    await Promise.all([
+      fetchDatePerformanceData(),
+      fetchData()
+    ])
+  } finally {
+    loading.value = false
+  }
+}
+
+// 组件挂载时初始化数据
+onMounted(async () => {
+  const { startDate, endDate } = getDefaultDateRange()
+  localStartDate.value = startDate
+  localEndDate.value = endDate
+  
+  loading.value = true
+  try {
+    await Promise.all([
+      fetchDatePerformanceData(),
+      fetchData()
+    ])
+  } finally {
+    loading.value = false
   }
 })
 </script>
 
 <style scoped>
 .free-traffic-analysis {
-  padding: 24px;
-  background: var(--card-bg);
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-lg);
+  position: relative;
 }
 
 .analysis-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: var(--spacing-xl);
 }
 
 .title-section {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 12px;  /* 与访问来源分析保持一致的间距 */
 }
 
 .analysis-title {
+  margin: 0;
   font-size: 16px;
   font-weight: 600;
   color: var(--text-color);
-  margin: 0;
 }
 
-.metrics-overview {
-  margin-bottom: 24px;
+.title-tag {
+  border: none;
+  animation: pulse 2s infinite;
+  margin-left: var(--spacing-md);
 }
 
-.metric-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
+@keyframes pulse {
+  0% { opacity: 0.8; }
+  50% { opacity: 1; }
+  100% { opacity: 0.8; }
 }
 
-.metric-content {
-  text-align: center;
-}
-
-.metric-title {
-  color: var(--text-secondary);
-  font-size: 14px;
-  margin-bottom: 8px;
-}
-
-.metric-value {
-  color: var(--text-color);
-  font-size: 24px;
-  font-weight: 600;
-  margin-bottom: 8px;
-}
- 
-.table-cell-text {
-  color: var(--text-color);
-  font-weight: normal;
-}
-
+/* 自定义表格样式 */
 :deep(.el-table) {
-  --el-table-border-color: var(--border-color);
-  --el-table-header-bg-color: var(--card-bg);
-  --el-table-row-hover-bg-color: var(--hover-bg);
-  --el-table-header-text-color: var(--text-secondary);
-  --el-table-text-color: var(--text-color);
-  border-radius: 8px;
-  overflow: hidden;
+  background-color: transparent;
+  color: var(--el-text-color-primary);  /* 使用主文本颜色 */
+  border: none;
 }
 
-:deep(.el-table th) {
-  background-color: var(--card-bg);
-  font-weight: 500;
+:deep(.el-table::before),
+:deep(.el-table::after) {
+  display: none;
+}
+
+/* 表头样式 */
+:deep(.el-table th.el-table__cell) {
+  background-color: transparent;
+  border: none;
+  color: var(--el-text-color-secondary);  /* 使用次要文本颜色 */
+  font-weight: normal;
+  padding: 8px 0;
+}
+
+/* 单元格样式 */
+:deep(.el-table td.el-table__cell) {
+  background-color: transparent;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  color: var(--el-text-color-primary);  /* 使用主文本颜色 */
+  padding: 8px 0;
+}
+
+/* 斑马纹效果 */
+:deep(.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell) {
+  background-color: var(--el-fill-color-light);
+}
+
+/* 悬停效果 */
+:deep(.el-table--enable-row-hover .el-table__body tr:hover > td.el-table__cell) {
+  background-color: var(--el-fill-color) !important;
+}
+
+/* 表格行样式 */
+:deep(.el-table .el-table__row) {
+  background-color: transparent;
+}
+
+/* 数字列右对齐 */
+:deep(.el-table .cell.numeric) {
+  text-align: right;
+}
+
+/* 自定义 tabs 样式 */
+:deep(.el-tabs__nav-wrap::after) {
+  height: 1px;
+  background-color: var(--border-color);
+}
+
+:deep(.el-tabs__item) {
   color: var(--text-secondary);
+  transition: all 0.3s;
 }
 
-:deep(.el-table td) {
-  background-color: var(--card-bg);
+:deep(.el-tabs__item.is-active) {
+  color: var(--primary-color);
 }
 
-:deep(.el-table--enable-row-hover .el-table__body tr:hover > td) {
-  background-color: var(--hover-bg);
+:deep(.el-tabs__active-bar) {
+  background-color: var(--primary-color);
+  height: 3px;
+  border-radius: 1.5px;
 }
 
-:deep(.el-table .cell) {
-  white-space: nowrap;
-}
-
+/* 分页样式 */
 .pagination-container {
   margin-top: 20px;
   display: flex;
@@ -545,20 +439,4 @@ onMounted(async () => {
 :deep(.el-pagination .el-select .el-input) {
   width: 110px;
 }
-
-@media (max-width: 768px) {
-  .free-traffic-analysis {
-    padding: 16px;
-  }
-
-  .analysis-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .metrics-overview {
-    margin-bottom: 16px;
-  }
-}
-</style> 
+</style>

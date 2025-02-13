@@ -9,6 +9,9 @@ const SERVICE_ACCOUNT = {
   token_uri: 'https://oauth2.googleapis.com/token'
 };
 
+const GSC_API = 'https://www.googleapis.com/webmasters/v3';
+const SITE_URL = import.meta.env.VITE_GSC_SITE_URL;
+
 class GA4Client {
   constructor() {
     this.accessToken = null;
@@ -21,22 +24,6 @@ class GA4Client {
       return this.accessToken;
     }
 
-    try {
-      const response = await axios.post(SERVICE_ACCOUNT.token_uri, {
-        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-        assertion: this.createJWT()
-      });
-
-      this.accessToken = response.data.access_token;
-      this.tokenExpiry = Date.now() + (response.data.expires_in * 1000);
-      return this.accessToken;
-    } catch (error) {
-      console.error('Failed to get access token:', error);
-      throw new Error('Authentication failed');
-    }
-  }
-
-  createJWT() {
     const now = Math.floor(Date.now() / 1000);
     const header = {
       alg: 'RS256',
@@ -44,23 +31,35 @@ class GA4Client {
     };
     
     const payload = {
-      iss: SERVICE_ACCOUNT.client_email,
-      sub: SERVICE_ACCOUNT.client_email,
-      aud: SERVICE_ACCOUNT.token_uri,
+      iss: import.meta.env.VITE_GSC_CLIENT_EMAIL,
+      sub: import.meta.env.VITE_GSC_CLIENT_EMAIL,
+      aud: 'https://oauth2.googleapis.com/token',
       iat: now,
       exp: now + 3600,
-      scope: 'https://www.googleapis.com/auth/analytics.readonly'
+      scope: [
+        'https://www.googleapis.com/auth/analytics.readonly',
+        'https://www.googleapis.com/auth/webmasters.readonly'  // 添加 GSC 的 scope
+      ].join(' ')
     };
 
     const sHeader = JSON.stringify(header);
     const sPayload = JSON.stringify(payload);
+    const privateKey = import.meta.env.VITE_GSC_PRIVATE_KEY.replace(/\\n/g, '\n');
     
-    return KJUR.jws.JWS.sign(
-      'RS256',
-      sHeader,
-      sPayload,
-      SERVICE_ACCOUNT.private_key
-    );
+    try {
+      const jwt = KJUR.jws.JWS.sign('RS256', sHeader, sPayload, privateKey);
+      const response = await axios.post('https://oauth2.googleapis.com/token', {
+        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+        assertion: jwt
+      });
+
+      this.accessToken = response.data.access_token;
+      this.tokenExpiry = Date.now() + (response.data.expires_in * 1000);
+      return this.accessToken;
+    } catch (error) {
+      console.error('Failed to get access token:', error);
+      throw error;
+    }
   }
 
   async fetchAnalyticsData(dateRange = '30') {
@@ -138,6 +137,63 @@ class GA4Client {
       return response.data;
     } catch (error) {
       console.error('GA4 Realtime API Error:', error);
+      throw error;
+    }
+  }
+
+  // GSC 方法
+  async fetchSearchAnalytics(startDate, endDate) {
+    try {
+      const token = await this.getAccessToken();
+      const response = await axios.post(
+        `${GSC_API}/sites/${encodeURIComponent(SITE_URL)}/searchAnalytics/query`,
+        {
+          startDate,
+          endDate,
+          dimensions: ['query'],
+          rowLimit: 100
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      console.log('GSC response:', response.data);
+      return response.data.rows || [];
+    } catch (error) {
+      console.error('GSC API Error:', error);
+      if (error.response) {
+        console.error('Error response:', error.response.data);
+      }
+      throw error;
+    }
+  }
+
+  async fetchSearchAnalyticsByPath(startDate, endDate) {
+    try {
+      const token = await this.getAccessToken();
+      const response = await axios.post(
+        `${GSC_API}/sites/${encodeURIComponent(SITE_URL)}/searchAnalytics/query`,
+        {
+          startDate,
+          endDate,
+          dimensions: ['page'],
+          rowLimit: 100
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      return response.data.rows || [];
+    } catch (error) {
+      console.error('GSC API Error:', error);
       throw error;
     }
   }
@@ -296,5 +352,19 @@ export async function fetchRealtimeMetrics() {
   } catch (error) {
     console.error('GA4 Realtime API Error:', error)
     throw error
+  }
+}
+
+// 导出 GSC 相关函数
+export async function fetchSearchData(startDate, endDate, type = 'query') {
+  try {
+    if (type === 'query') {
+      return await ga4Client.fetchSearchAnalytics(startDate, endDate);
+    } else {
+      return await ga4Client.fetchSearchAnalyticsByPath(startDate, endDate);
+    }
+  } catch (error) {
+    console.error('Error fetching search data:', error);
+    throw error;
   }
 }

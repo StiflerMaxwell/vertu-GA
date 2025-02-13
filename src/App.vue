@@ -192,6 +192,7 @@ import {
   Sunny
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { getDefaultDateRange } from './utils/dateUtils'
 
 const loading = ref(false)
 const dateRange = ref(null)
@@ -370,19 +371,9 @@ const refreshData = async () => {
 
 // 初始化默认日期范围
 const initDefaultDates = () => {
-  const end = new Date()
-  const start = new Date()
-  start.setDate(end.getDate() - 7)
-  
-  const formatDate = (date) => {
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-  }
-  
-  startDate.value = formatDate(start)
-  endDate.value = formatDate(end)
+  const { startDate: start, endDate: end } = getDefaultDateRange()
+  startDate.value = start
+  endDate.value = end
   dateRange.value = [startDate.value, endDate.value]
   dateKey.value++
   
