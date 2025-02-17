@@ -267,6 +267,8 @@ const handleResize = () => {
 
 <style scoped>
 .analysis-section {
+  width: 100%;
+  height: 100%;
   padding: 20px;
   background: rgba(255, 255, 255, 0.02);
   border-radius: 12px;
@@ -285,10 +287,16 @@ const handleResize = () => {
   font-size: 18px;
 }
 
+.analysis-content {
+  width: 100%;
+  height: 100%;
+}
+
 .insight-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 20px;
+  width: 100%;
   margin-bottom: 24px;
 }
 
@@ -355,6 +363,7 @@ const handleResize = () => {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 20px;
+  width: 100%;
 }
 
 .chart-wrapper {

@@ -5,6 +5,17 @@
         <h3 class="analysis-title">访问来源分析</h3>
         <el-tag size="small" type="warning">来源</el-tag>
       </div>
+      
+      <!-- 添加搜索框 -->
+      <div class="search-section">
+        <el-input
+          v-model="searchKeyword"
+          placeholder="搜索来源/媒介/活动"
+          :prefix-icon="Search"
+          clearable
+          @input="handleSearch"
+        />
+      </div>
     </div>
 
     <div class="source-table">
@@ -12,6 +23,8 @@
         :data="sourceData" 
         style="width: 100%"
         @sort-change="handleSortChange"
+        show-summary
+        :summary-method="getSummaries"
       >
         <el-table-column 
           prop="source" 
@@ -31,12 +44,12 @@
 
         <el-table-column 
           prop="sourceMedium" 
-          label="来源/媒介" 
+          label="媒介" 
           min-width="180"
           sortable="custom"
         >
           <template #default="{ row }">
-            <span class="table-cell-text">{{ row.sourceMedium }}</span>
+            <span class="table-cell-text">{{ row.medium }}</span>
           </template>
         </el-table-column>
 
@@ -116,6 +129,7 @@ import { ref, watch, computed, onMounted } from 'vue'
 import { Search, Share, Link, Position } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { ga4Client } from '../api/ga4'
+import { useDebounceFn } from '@vueuse/core'
 
 const props = defineProps({
   startDate: {
@@ -128,15 +142,31 @@ const props = defineProps({
   }
 })
 
-const sourceData = ref([])
 const loading = ref(false)
 const currentPage = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 const currentSort = ref({
-  prop: 'users',
+  prop: 'totalUsers',
   order: 'descending'
 })
+
+const searchKeyword = ref('')
+const sourceData = ref([])
+
+// 添加总计数据的 ref
+const totals = ref({
+  visits: 0,
+  users: 0,
+  bounceRate: 0,
+  avgDuration: 0
+})
+
+// 使用防抖来避免频繁请求
+const debouncedSearch = useDebounceFn(() => {
+  currentPage.value = 1  // 重置页码
+  fetchData()
+}, 300)
 
 // 处理页码变化
 const handleCurrentChange = (page) => {
@@ -183,54 +213,152 @@ async function fetchData() {
   loading.value = true
   
   try {
-    console.log('TrafficSource fetching with dates:', props.startDate, props.endDate)
-
-    const report = {
-      dateRanges: [{ 
-        startDate: props.startDate, 
-        endDate: props.endDate 
+    // 构建基础请求体
+    const baseRequest = {
+      dateRanges: [{
+        startDate: props.startDate,
+        endDate: props.endDate
       }],
-      dimensions: [
-        { name: 'sessionSource' },
-        { name: 'sessionMedium' },
-        { name: 'sessionCampaignName' }
-      ],
       metrics: [
         { name: 'screenPageViews' },
         { name: 'totalUsers' },
         { name: 'bounceRate' },
         { name: 'averageSessionDuration' }
-      ],
-      orderBys: [
-        {
-          ...getOrderByField(currentSort.value.prop),
-          desc: currentSort.value.order === 'descending'
-        }
-      ],
-      limit: pageSize.value,
-      offset: (currentPage.value - 1) * pageSize.value
+      ]
     }
 
-    console.log('TrafficSource API request:', report)
-    const response = await ga4Client.runReport(report)
-    console.log('TrafficSource API response:', response)
+    // 添加搜索条件
+    const dimensionFilter = searchKeyword.value ? {
+      orGroup: {
+        expressions: [
+          {
+            filter: {
+              fieldName: 'sessionSource',
+              stringFilter: {
+                matchType: 'CONTAINS',
+                value: searchKeyword.value,
+                caseSensitive: false
+              }
+            }
+          },
+          {
+            filter: {
+              fieldName: 'sessionMedium',
+              stringFilter: {
+                matchType: 'CONTAINS',
+                value: searchKeyword.value,
+                caseSensitive: false
+              }
+            }
+          },
+          {
+            filter: {
+              fieldName: 'sessionCampaignName',
+              stringFilter: {
+                matchType: 'CONTAINS',
+                value: searchKeyword.value,
+                caseSensitive: false
+              }
+            }
+          }
+        ]
+      }
+    } : undefined
 
-    sourceData.value = response.rows.map(row => ({
-      type: getSourceType(row.dimensionValues[0].value),
-      source: row.dimensionValues[0].value,
-      sourceMedium: `${row.dimensionValues[0].value}/${row.dimensionValues[1].value}`,
-      campaign: row.dimensionValues[2].value,
-      visits: parseInt(row.metricValues[0].value),
-      users: parseInt(row.metricValues[1].value),
-      bounceRate: parseFloat(row.metricValues[2].value),
-      avgDuration: parseFloat(row.metricValues[3].value)
-    }))
+    // 分页数据请求
+    const pageRequest = {
+      ...baseRequest,
+      dimensions: [
+        { name: 'sessionSource' },
+        { name: 'sessionMedium' },
+        { name: 'sessionCampaignName' }
+      ],
+      dimensionFilter,
+      limit: pageSize.value,
+      offset: (currentPage.value - 1) * pageSize.value,
+      orderBys: [{
+        metric: { metricName: 'totalUsers' },
+        desc: true
+      }]
+    }
 
-    total.value = response.rowCount || 0
+    // 总计数据请求（使用相同的筛选条件但不分页）
+    const totalRequest = {
+      ...baseRequest,
+      dimensionFilter,
+      dimensions: [
+        { name: 'sessionSource' },
+        { name: 'sessionMedium' },
+        { name: 'sessionCampaignName' }
+      ]
+    }
+
+    // 并行请求数据
+    const [pageResponse, totalResponse] = await Promise.all([
+      ga4Client.runReport(pageRequest),
+      ga4Client.runReport(totalRequest)
+    ])
+
+    // 处理分页数据
+    if (pageResponse?.rows?.length) {
+      sourceData.value = pageResponse.rows.map(row => {
+        const source = row.dimensionValues[0].value
+        const medium = row.dimensionValues[1].value
+        const campaign = row.dimensionValues[2].value
+        
+        return {
+          type: getSourceType(source),
+          source: source,
+          medium: medium,
+          sourceMedium: `${source}/${medium}`,
+          campaign: campaign === '(not set)' ? '-' : campaign,
+          visits: parseInt(row.metricValues[0].value),
+          users: parseInt(row.metricValues[1].value),
+          bounceRate: parseFloat(row.metricValues[2].value),
+          avgDuration: parseFloat(row.metricValues[3].value)
+        }
+      })
+    } else {
+      sourceData.value = []
+    }
+
+    // 计算总计数据
+    if (totalResponse?.rows?.length) {
+      const totalVisits = totalResponse.rows.reduce((sum, row) => sum + parseInt(row.metricValues[0].value), 0)
+      const totalUsers = totalResponse.rows.reduce((sum, row) => sum + parseInt(row.metricValues[1].value), 0)
+      
+      // 计算加权平均的跳出率和访问时长
+      const weightedBounceRate = totalResponse.rows.reduce((sum, row) => {
+        const users = parseInt(row.metricValues[1].value)
+        return sum + parseFloat(row.metricValues[2].value) * users
+      }, 0) / totalUsers
+
+      const weightedDuration = totalResponse.rows.reduce((sum, row) => {
+        const users = parseInt(row.metricValues[1].value)
+        return sum + parseFloat(row.metricValues[3].value) * users
+      }, 0) / totalUsers
+
+      totals.value = {
+        visits: totalVisits,
+        users: totalUsers,
+        bounceRate: weightedBounceRate,
+        avgDuration: weightedDuration
+      }
+    }
+
+    total.value = pageResponse.rowCount || 0
 
   } catch (error) {
     console.error('Error fetching traffic source data:', error)
     ElMessage.error('获取数据失败')
+    sourceData.value = []
+    total.value = 0
+    totals.value = {
+      visits: 0,
+      users: 0,
+      bounceRate: 0,
+      avgDuration: 0
+    }
   } finally {
     loading.value = false
   }
@@ -315,10 +443,10 @@ const formatPercent = (value) => {
 
 // 格式化时长
 const formatDuration = (seconds) => {
-  if (!seconds) return '0秒'
+  if (!seconds && seconds !== 0) return '0秒'
   const minutes = Math.floor(seconds / 60)
-  if (minutes < 1) return `${seconds}秒`
-  return `${minutes}分${seconds % 60}秒`
+  if (minutes < 1) return `${Math.round(seconds)}秒`
+  return `${minutes}分${Math.round(seconds % 60)}秒`
 }
 
 // 获取趋势样式
@@ -328,10 +456,10 @@ const getTrendClass = (value) => {
 }
 
 // 获取来源类型
-const getSourceType = (source) => {
+const getSourceType = (source = '') => {
   source = source.toLowerCase()
-  if (source.includes('google') || source.includes('baidu') || source.includes('bing')) return 'search'
-  if (source.includes('facebook') || source.includes('twitter') || source.includes('linkedin')) return 'social'
+  if (source.includes('google') || source.includes('bing') || source.includes('yandex')) return 'search'
+  if (source.includes('facebook') || source.includes('fb') || source.includes('instagram') || source === 'm.facebook.com') return 'social'
   if (source === '(direct)') return 'direct'
   return 'referral'
 }
@@ -342,7 +470,7 @@ const handleSortChange = ({ prop, order }) => {
   
   if (!prop || !order) {
     currentSort.value = {
-      prop: 'users',
+      prop: 'totalUsers',
       order: 'descending'
     }
   } else {
@@ -352,14 +480,57 @@ const handleSortChange = ({ prop, order }) => {
   currentPage.value = 1
   fetchData()
 }
+
+// 处理搜索
+const handleSearch = () => {
+  debouncedSearch()
+}
+
+// 监听搜索关键词变化
+watch(searchKeyword, () => {
+  handleSearch()
+})
+
+// 修改总计计算方法使用 API 返回的总计数据
+const getSummaries = (param) => {
+  const { columns } = param
+  const sums = []
+  
+  columns.forEach((column, index) => {
+    if (index === 0) {
+      sums[index] = '总计'
+      return
+    }
+    
+    switch (column.property) {
+      case 'visits':
+        sums[index] = formatNumber(totals.value.visits)
+        break
+      case 'users':
+        sums[index] = formatNumber(totals.value.users)
+        break
+      case 'bounceRate':
+        sums[index] = formatPercent(totals.value.bounceRate)
+        break
+      case 'avgDuration':
+        sums[index] = formatDuration(totals.value.avgDuration)
+        break
+      default:
+        sums[index] = ''
+    }
+  })
+  
+  return sums
+}
 </script>
 
 <style scoped>
 .source-analysis {
-  padding: 24px;
-  background: var(--card-bg);
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.02);
   border-radius: 12px;
-  border: 1px solid var(--border-color);
 }
 
 .analysis-header {
@@ -443,6 +614,8 @@ const handleSortChange = ({ prop, order }) => {
 }
 
 :deep(.el-table) {
+  width: 100% !important;
+  height: 100%;
   --el-table-border-color: var(--border-color);
   --el-table-header-bg-color: var(--card-bg);
   --el-table-row-hover-bg-color: var(--hover-bg);
@@ -497,5 +670,40 @@ const handleSortChange = ({ prop, order }) => {
 
 :deep(.el-table th.descending .sort-caret.descending) {
   border-top-color: var(--primary-color);
+}
+
+.search-section {
+  width: 300px; /* 或者其他合适的宽度 */
+}
+
+:deep(.el-input__wrapper) {
+  background-color: var(--el-bg-color);
+}
+
+:deep(.el-input__inner) {
+  color: var(--el-text-color-primary);
+}
+
+:deep(.el-input__prefix-inner) {
+  color: var(--el-text-color-secondary);
+}
+
+:deep(.el-table__footer-wrapper) {
+  background-color: var(--card-bg);
+}
+
+:deep(.el-table__footer) {
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  font-weight: 600;
+}
+
+:deep(.el-table__footer td) {
+  background-color: var(--card-bg);
+  border-top: 1px solid var(--border-color);
+}
+
+:deep(.el-table__footer .cell) {
+  padding: 12px 0;
 }
 </style> 

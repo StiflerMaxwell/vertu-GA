@@ -13,11 +13,12 @@
     </div>
 
     <div v-else class="dashboard-container">
-      <div class="dashboard-content">
-        <header class="dashboard-header">
+      <header class="sticky-header">
+        <div class="header-content">
           <div class="title-section">
             <h1 class="dashboard-title">
               <span class="brand">Vertu</span>
+              <span class="grand">Grand</span>
               <span class="analytics">Analytics</span>
             </h1>
             <div class="realtime-indicator">
@@ -49,15 +50,16 @@
             </el-button>
             <el-button
               class="theme-toggle"
-              :class="{ 'is-dark': isDark }"
               @click="toggleTheme"
             >
               <el-icon v-if="isDark"><Sunny /></el-icon>
               <el-icon v-else><Moon /></el-icon>
             </el-button>
           </div>
-        </header>
+        </div>
+      </header>
 
+      <main class="dashboard-content">
         <el-loading :full-screen="false" :element-loading-text="'加载中...'" v-if="loading" />
         
         <template v-else>
@@ -156,7 +158,7 @@
             </div>
           </section>
         </template>
-      </div>
+      </main>
     </div>
   </div>
 </template>
@@ -760,7 +762,7 @@ const trafficData = ref({
 </script>
 
 <style>
-/* 深色模式变量 */
+/* 全局变量，保持不变 */
 :root {
   --bg-color: #f8fafc;
   --card-bg: #ffffff;
@@ -780,187 +782,95 @@ const trafficData = ref({
 
 <style scoped>
 .dashboard {
-  min-height: 100vh;
-  width: 100vw;
-  max-width: 100vw;
-  background: var(--bg-color);
-  margin: 0;
-  padding: 0;
-  color: var(--text-color);
-  transition: background-color 0.3s, color 0.3s;
+  height: 100vh;
+  overflow-y: auto; /* 添加滚动 */
+  background-color: var(--bg-color);
 }
 
 .dashboard-container {
-  width: 100vw;
-  max-width: 100vw;
   min-height: 100vh;
-  padding: 20px;
-  box-sizing: border-box;
-  margin: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-.dashboard-header {
+.sticky-header {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background-color: var(--bg-color);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.header-content {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 16px 32px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  background: var(--card-bg);
-  padding: 24px 32px;
-  border-radius: 16px;
-  box-shadow: 0 1px 3px var(--border-color);
+  gap: 24px;
 }
 
 .title-section {
   display: flex;
   align-items: center;
-  gap: 20px;
-}
-
-.dashboard-title {
-  font-size: 28px;
-  font-weight: 800;
-  margin: 0;
-  letter-spacing: -0.5px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.brand {
-  background: linear-gradient(135deg, #1a1a1a 0%, #4a4a4a 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-fill-color: transparent;
-  font-weight: 900;
-}
-
-.analytics {
-  background: linear-gradient(to right, #3494E6, #EC6EAD);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-fill-color: transparent;
-  font-weight: 800;
-}
-
-/* 深色模式下的渐变 */
-:root.dark .brand {
-  background: linear-gradient(135deg, #ffffff 0%, #a8a8b2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-fill-color: transparent;
-}
-
-:root.dark .analytics {
-  background: linear-gradient(to right, #64B3F4, #FF69B4);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-fill-color: transparent;
-}
-
-/* 添加悬停效果 */
-.dashboard-title:hover .brand {
-  animation: shimmer 2s infinite;
-}
-
-.dashboard-title:hover .analytics {
-  animation: shimmer 2s infinite 0.5s;
-}
-
-@keyframes shimmer {
-  0% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.8;
-  }
-  100% {
-    opacity: 1;
-  }
-}
-
-.realtime-indicator {
-  display: flex;
-  align-items: center;
-  font-size: 14px;
-  color: #10B981;
-  background: rgba(16, 185, 129, 0.1);
-  padding: 6px 16px;
-  border-radius: 20px;
-  font-weight: 500;
-  position: relative;
-  padding-right: 28px;
-  transition: all 0.3s ease;
-}
-
-.realtime-indicator:hover {
-  background: rgba(16, 185, 129, 0.15);
-}
-
-.pulse-dot {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 6px;
-  height: 6px;
-  background-color: #10B981;
-  border-radius: 50%;
-}
-
-.pulse-dot::before,
-.pulse-dot::after {
-  content: '';
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  background-color: #10B981;
-  border-radius: 50%;
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-.pulse-dot::after {
-  animation-delay: 0.5s;
+  gap: 16px;
 }
 
 .dashboard-actions {
   display: flex;
-  gap: 16px;
   align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.dashboard-content {
+  flex: 1;
+  width: 100%;
+  padding: 24px 32px;
 }
 
 .custom-date-picker {
   width: 320px;
 }
 
-.refresh-button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  transition: all 0.3s ease;
+/* 暗色主题适配 */
+.dark .sticky-header {
+  background-color: var(--bg-color);
+  border-bottom: 1px solid var(--border-color);
 }
 
-.refresh-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+/* 响应式布局优化 */
+@media (max-width: 1200px) {
+  .header-content,
+  .dashboard-content {
+    padding: 16px 24px;
+  }
 }
 
-.dashboard-content {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  margin: 0;
-}
+@media (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+    padding: 12px 16px;
+  }
 
-.dashboard-main {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+  .dashboard-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .custom-date-picker {
+    width: 100%;
+  }
+
+  .dashboard-content {
+    padding: 16px;
+  }
 }
 
 /* 区域通用样式 */
@@ -1065,44 +975,6 @@ section {
 
   .chart-container {
     padding: 24px 32px;
-  }
-}
-
-@media (max-width: 1200px) {
-  :deep(.metrics-grid) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 768px) {
-  .dashboard-content {
-    padding: 16px;
-  }
-
-  .dashboard-header {
-    padding: 20px;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 20px;
-  }
-
-  .title-section {
-    width: 100%;
-  }
-
-  .dashboard-actions {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .custom-date-picker {
-    width: 100%;
-  }
-
-  .chart-container {
-    padding: 20px;
   }
 }
 
@@ -1307,5 +1179,147 @@ section {
   .analysis-section {
     margin-top: 16px;
   }
+}
+
+/* 修改深度选择器的写法 */
+:deep(.el-collapse) {
+  border: none;
+  background: transparent;
+}
+
+:deep(.el-collapse-item__header) {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  color: #fff;
+}
+
+/* 确保渐变标题样式只在当前组件生效 */
+.dashboard-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.brand {
+  background: linear-gradient(135deg, #FF6B6B, #FFE66D);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: brightness(110%) drop-shadow(0 0 8px rgba(255, 107, 107, 0.3));
+  animation: breatheGlow1 3s ease-in-out infinite;
+}
+
+.grand {
+  background: linear-gradient(135deg, #4ECDC4, #556270);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: brightness(110%) drop-shadow(0 0 8px rgba(78, 205, 196, 0.3));
+  animation: breatheGlow2 3s ease-in-out infinite;
+  animation-delay: 0.5s;
+}
+
+.analytics {
+  background: linear-gradient(135deg, #7474BF, #348AC7);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: brightness(110%) drop-shadow(0 0 8px rgba(116, 116, 191, 0.3));
+  animation: breatheGlow3 3s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+/* 暗色主题适配 */
+:root[data-theme='dark'] .brand {
+  background: linear-gradient(135deg, #FF8E8E, #FFF3A0);
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: breatheGlowDark1 3s ease-in-out infinite;
+}
+
+:root[data-theme='dark'] .grand {
+  background: linear-gradient(135deg, #6FF2E9, #8A97AB);
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: breatheGlowDark2 3s ease-in-out infinite;
+  animation-delay: 0.5s;
+}
+
+:root[data-theme='dark'] .analytics {
+  background: linear-gradient(135deg, #9D9DEB, #5CB3F0);
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: breatheGlowDark3 3s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+/* 优化滚动条样式 */
+:deep(::-webkit-scrollbar) {
+  width: 6px;
+  height: 6px;
+}
+
+:deep(::-webkit-scrollbar-track) {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+
+:deep(::-webkit-scrollbar-thumb) {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+:deep(.dark ::-webkit-scrollbar-track) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+:deep(.dark ::-webkit-scrollbar-thumb) {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.realtime-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-color);
+  opacity: 0.8;
+  font-size: 14px;
+  padding: 4px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+}
+
+.pulse-dot {
+  width: 6px;
+  height: 6px;
+  background-color: #67c23a;
+  border-radius: 50%;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* 暗色主题适配 */
+.dark .realtime-indicator {
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.15);
 }
 </style> 

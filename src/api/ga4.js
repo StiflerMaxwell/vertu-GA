@@ -368,3 +368,44 @@ export async function fetchSearchData(startDate, endDate, type = 'query') {
     throw error;
   }
 }
+
+export const getTrafficSourceData = async (requestBody) => {
+  try {
+    return await runGA4Report(requestBody)
+  } catch (error) {
+    console.error('Failed to get traffic source data:', error)
+    throw error
+  }
+}
+
+export const runGA4Report = async (requestBody) => {
+  try {
+    const accessToken = await getGA4AccessToken()
+    
+    if (!accessToken) {
+      throw new Error('Failed to get access token')
+    }
+
+    const apiUrl = `https://analyticsdata.googleapis.com/v1beta/properties/${import.meta.env.VITE_GA4_PROPERTY_ID}:runReport`
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body: JSON.stringify(requestBody)
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(JSON.stringify(errorData, null, 2))
+    }
+
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error('GA4 API Error:', error)
+    throw error
+  }
+}
