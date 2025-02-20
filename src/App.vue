@@ -21,9 +21,18 @@
               <span class="grand">Grand</span>
               <span class="analytics">Analytics</span>
             </h1>
-            <div class="realtime-indicator">
-              实时数据
-              <span class="pulse-dot"></span>
+            <div class="header-indicators">
+              <div class="realtime-indicator">
+                实时数据
+                <span class="pulse-dot"></span>
+              </div>
+              <a href="https://fb-ads.vertu.cn/" 
+                 target="_blank" 
+                 class="fb-dashboard-link"
+              >
+                <el-icon><Share /></el-icon>
+                FB看板
+              </a>
             </div>
           </div>
           <div class="dashboard-actions">
@@ -37,6 +46,7 @@
               class="custom-date-picker"
               value-format="YYYY-MM-DD"
               :default-value="defaultDates"
+              :shortcuts="dateShortcuts"
               @change="handleDateChange"
             />
             <el-button 
@@ -86,16 +96,17 @@
           </section>
 
           <!-- 免费流量分析 -->
-          <section class="section-traffic">
+          <section class="section-free-traffic">
+            <h2 class="section-title">免费流量分析</h2>
             <FreeTrafficAnalysis 
               :start-date="startDate" 
-              :end-date="endDate" 
-              :key="`free-traffic-${dateKey}`"
+              :end-date="endDate"
             />
           </section>
 
           <!-- 访问来源分析 -->
           <section class="section-source">
+            <h2 class="section-title">访问来源分析</h2>
             <TrafficSourceAnalysis 
               :start-date="startDate" 
               :end-date="endDate" 
@@ -103,8 +114,14 @@
             />
           </section>
 
+          <!-- 性能指标分析 -->
+          <section class="section-performance">
+            <h2 class="section-title">性能指标分析</h2>
+            <PerformanceMetrics />
+          </section>
+
           <!-- 添加数据洞察部分 -->
-          <section class="section-insights" v-if="trendInsights.length > 0">
+          <!-- <section class="section-insights" v-if="trendInsights.length > 0">
             <h2 class="section-title">数据洞察</h2>
             <div class="insights-grid">
               <el-card class="insight-card" v-for="(insight, index) in trendInsights" :key="index">
@@ -121,10 +138,10 @@
                 </div>
               </el-card>
             </div>
-          </section>
+          </section> -->
 
           <!-- 用户分布区域 -->
-          <section class="section-distribution">
+          <!-- <section class="section-distribution">
             <h2 class="section-title">用户分布</h2>
             <div class="distribution-grid">
               <div class="distribution-item" v-if="geoData.length > 0">
@@ -140,10 +157,10 @@
                 <DistributionChart :data="sourceData" />
               </div>
             </div>
-          </section>
+          </section> -->
 
           <!-- 用户行为指标 -->
-          <section class="section-behavior">
+          <!-- <section class="section-behavior">
             <h2 class="section-title">用户行为</h2>
             <div class="behavior-metrics">
               <div class="behavior-item" v-for="metric in behaviorMetrics" :key="metric.name">
@@ -156,7 +173,7 @@
                 </div>
               </div>
             </div>
-          </section>
+          </section> -->
         </template>
       </main>
     </div>
@@ -174,6 +191,7 @@ import DistributionChart from './components/DistributionChart.vue'
 import CoreMetrics from './components/CoreMetrics.vue'
 import FreeTrafficAnalysis from './components/FreeTrafficAnalysis.vue'
 import TrafficSourceAnalysis from './components/TrafficSourceAnalysis.vue'
+import PerformanceMetrics from './components/PerformanceMetrics.vue'
 import {
   FullScreen as IconFullScreen,
   Close as IconClose,
@@ -191,7 +209,8 @@ import {
   ArrowUp,
   ArrowDown,
   Moon,
-  Sunny
+  Sunny,
+  Share
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { getDefaultDateRange } from './utils/dateUtils'
@@ -1321,5 +1340,53 @@ section {
 .dark .realtime-indicator {
   color: rgba(255, 255, 255, 0.9);
   background: rgba(255, 255, 255, 0.15);
+}
+
+.header-indicators {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.fb-dashboard-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  background-color: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
+  text-decoration: none;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  border: none;
+  outline: none;
+}
+
+.fb-dashboard-link:hover {
+  background-color: var(--el-color-primary-light-8);
+  color: var(--el-color-primary-dark-2);
+}
+
+/* 暗黑模式适配 */
+.dark .fb-dashboard-link {
+  background-color: var(--el-color-primary-dark-2);
+  color: #fff;
+}
+
+.dark .fb-dashboard-link:hover {
+  background-color: var(--el-color-primary-dark-1);
+}
+
+.section-free-traffic {
+  background: var(--el-bg-color);
+  border-radius: var(--el-border-radius-base);
+  padding: 24px;
+  box-shadow: var(--el-box-shadow-light);
+}
+
+.dark .section-free-traffic {
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-light);
 }
 </style> 

@@ -352,6 +352,9 @@ onMounted(async () => {
 
 /* 自定义表格样式 */
 :deep(.el-table) {
+  --el-table-border-color: var(--el-border-color-light);
+  --el-table-header-bg-color: var(--el-bg-color);
+  --el-table-row-hover-bg-color: var(--el-fill-color-light);
   background-color: transparent;
   color: var(--el-text-color-primary);  /* 使用主文本颜色 */
   border: none;
@@ -438,5 +441,43 @@ onMounted(async () => {
 
 :deep(.el-pagination .el-select .el-input) {
   width: 110px;
+}
+
+/* 暗黑模式适配 */
+.dark {
+  :deep(.el-table) {
+    background-color: var(--el-bg-color);
+    color: #fff;
+  }
+
+  :deep(.el-table th),
+  :deep(.el-table td) {
+    background-color: var(--el-bg-color);
+    border-bottom-color: var(--el-border-color-light);
+    color: #fff;
+  }
+
+  :deep(.el-table--striped .el-table__body tr.el-table__row--striped td) {
+    background: var(--el-bg-color-overlay);
+    color: #fff;
+  }
+
+  :deep(.el-table--enable-row-hover .el-table__body tr:hover > td) {
+    background-color: var(--el-color-primary-dark-2) !important;
+    color: #fff !important;
+  }
+
+  :deep(.el-table__body tr:hover > td) {
+    background-color: var(--el-color-primary-dark-2) !important;
+    color: #fff !important;
+  }
+}
+
+/* 响应式布局 */
+@media screen and (max-width: 768px) {
+  :deep(.el-table) {
+    width: 100%;
+    overflow-x: auto;
+  }
 }
 </style>

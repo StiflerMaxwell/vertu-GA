@@ -1,31 +1,35 @@
 <template>
-  <div class="metrics-container" v-loading="loading">
-    <el-row :gutter="20">
-      <el-col :span="6" v-for="(metric, index) in metrics" :key="index">
-        <el-card class="metric-card" :class="metric.type">
-          <div class="metric-content">
-            <div class="metric-header">
-              <span class="metric-title">{{ metric.title }}</span>
-              <el-tooltip :content="metric.tooltip" placement="top">
-                <el-icon><QuestionFilled /></el-icon>
-              </el-tooltip>
+  <div class="core-metrics">
+    <div class="metrics-container" v-loading="loading">
+      <el-row :gutter="20">
+        <el-col :span="6" v-for="(metric, index) in metrics" :key="index">
+          <el-card class="metric-card" :class="metric.type">
+            <div class="metric-content">
+              <div class="metric-header">
+                <span class="metric-title">{{ metric.title }}</span>
+                <el-tooltip :content="metric.tooltip" placement="top">
+                  <el-icon><QuestionFilled /></el-icon>
+                </el-tooltip>
+              </div>
+              <div class="metric-value">{{ formatValue(metric.value, metric.type) }}</div>
+              <div class="metric-trend" :class="getTrendClass(metric.trend)">
+                {{ formatTrend(metric.trend) }}
+              </div>
             </div>
-            <div class="metric-value">{{ formatValue(metric.value, metric.type) }}</div>
-            <div class="metric-trend" :class="getTrendClass(metric.trend)">
-              {{ formatTrend(metric.trend) }}
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
+          </el-card>
+        </el-col>
+      </el-row>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
-import { QuestionFilled } from '@element-plus/icons-vue'
+import { ref, watch, onMounted, computed } from 'vue'
+import { QuestionFilled, List } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { ga4Client } from '../api/ga4'
+import { runLighthouseTest } from '../api/lighthouse'
+import { getLighthouseHistory, saveLighthouseResult } from '../api/lighthouseHistory'
 
 const props = defineProps({
   startDate: {
@@ -73,6 +77,21 @@ const metrics = ref([
     metricName: 'averageSessionDuration'
   }
 ])
+
+const lighthouseData = ref({
+  performance: 0,
+  accessibility: 0,
+  bestPractices: 0,
+  seo: 0,
+  fcp: '-',
+  lcp: '-',
+  cls: '-',
+  timestamp: ''
+})
+
+const testing = ref(false)
+const showHistory = ref(false)
+const historyData = ref([])
 
 // 检查日期是否有效
 const isValidDate = (dateStr) => {
@@ -209,6 +228,55 @@ watch(
   },
   { immediate: true }
 )
+
+// 加载历史记录
+const loadHistory = () => {
+  historyData.value = getLighthouseHistory()
+  if (historyData.value.length > 0) {
+    lighthouseData.value = historyData.value[0] // 使用最新的记录
+  }
+}
+
+const runTest = async () => {
+  testing.value = true
+  try {
+    const result = await runLighthouseTest('https://www.vertu.com')
+    lighthouseData.value = result
+    historyData.value = saveLighthouseResult(result)
+    ElMessage.success('性能测试完成')
+  } catch (error) {
+    ElMessage.error('性能测试失败')
+  } finally {
+    testing.value = false
+  }
+}
+
+const getScoreColor = (percentage) => {
+  if (percentage >= 90) return '#67C23A'
+  if (percentage >= 50) return '#E6A23C'
+  return '#F56C6C'
+}
+
+const getScoreType = (score) => {
+  if (score >= 90) return 'success'
+  if (score >= 50) return 'warning'
+  return 'danger'
+}
+
+const formatTime = (timestamp) => {
+  if (!timestamp) return '-'
+  return new Date(timestamp).toLocaleString()
+}
+
+const lastTestTime = computed(() => {
+  if (!lighthouseData.value.timestamp) return '暂无测试记录'
+  return `最近测试: ${formatTime(lighthouseData.value.timestamp)}`
+})
+
+onMounted(() => {
+  fetchData()
+  loadHistory() // 加载历史记录而不是立即运行测试
+})
 </script>
 
 <style scoped>
@@ -287,5 +355,135 @@ watch(
     width: 100%;
     margin-bottom: 16px;
   }
+}
+
+.performance-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  transition: all 0.3s;
+  height: 240px;
+}
+
+.performance-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px var(--shadow-color);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 4px;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.title-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+.test-time {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.performance-metrics {
+  display: flex;
+  gap: 32px;
+  padding: 24px 0;
+  height: calc(100% - 60px);
+}
+
+.performance-score {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.progress-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.progress-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.metrics-container {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 12px 0;
+}
+
+.performance-details {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+  margin-top: 12px;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detail-item .label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.detail-item .value {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+.test-button {
+  align-self: flex-end;
+  margin-top: 16px;
+}
+
+/* 暗色主题适配 */
+.dark .performance-card {
+  background: var(--dark-card-bg);
+  border-color: var(--dark-border-color);
+}
+
+.dark .title-text {
+  color: var(--dark-text-color);
+}
+
+.dark .test-time,
+.dark .progress-label,
+.dark .detail-item .label {
+  color: var(--dark-text-secondary);
+}
+
+.dark .progress-value,
+.dark .detail-item .value {
+  color: var(--dark-text-color);
+}
+
+:deep(.el-dialog__body) {
+  padding-top: 20px;
 }
 </style> 
