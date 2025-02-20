@@ -1,5 +1,5 @@
 // 使用 PageSpeed Insights API (基于 Lighthouse)
-const API_KEY = 'AIzaSyDnMiKIsCpz59H985oZdcgXAdAbbSoAztc' // 需要申请 Google PageSpeed Insights API key
+const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY
 const BASE_URL = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed'
 
 export async function runLighthouseTest(url, options = {}) {
