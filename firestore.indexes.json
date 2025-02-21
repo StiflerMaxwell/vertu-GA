@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "searchResults",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "cacheKey", "order": "ASCENDING" },
+        { "fieldPath": "expiryTime", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+} 

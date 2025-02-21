@@ -105,6 +105,7 @@
     >
       <div class="history-table-wrapper">
         <el-table 
+          v-loading="loading"
           :data="historyData" 
           style="width: 100%" 
           stripe
@@ -120,10 +121,10 @@
               {{ formatTime(row.timestamp) }}
             </template>
           </el-table-column>
-          <el-table-column prop="performance" label="性能得分" min-width="100" align="center">
+          <el-table-column prop="metrics.performance" label="性能得分" min-width="100" align="center">
             <template #default="{ row }">
-              <el-tag :type="getScoreType(row.performance)">
-                {{ row.performance }}分
+              <el-tag :type="getScoreType(row.metrics.performance)">
+                {{ row.metrics.performance }}分
               </el-tag>
             </template>
           </el-table-column>
@@ -134,10 +135,12 @@
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="fcp" label="FCP" min-width="120" align="center" />
-          <el-table-column prop="lcp" label="LCP" min-width="120" align="center" />
-          <el-table-column prop="cls" label="CLS" min-width="120" align="center" />
-          <el-table-column prop="tbt" label="TBT" min-width="120" align="center" />
+          <el-table-column prop="metrics.fcp" label="FCP" min-width="120" align="center" />
+          <el-table-column prop="metrics.lcp" label="LCP" min-width="120" align="center" />
+          <el-table-column prop="metrics.cls" label="CLS" min-width="120" align="center" />
+          <el-table-column prop="metrics.tbt" label="TBT" min-width="120" align="center" />
+          <el-table-column prop="ip" label="IP地址" min-width="140" align="center" />
+          <el-table-column prop="screenSize" label="屏幕尺寸" min-width="120" align="center" />
         </el-table>
       </div>
     </el-dialog>
@@ -145,11 +148,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { Monitor, Cellphone, Refresh, InfoFilled, Clock } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { runLighthouseTest } from '../api/lighthouse'
 import { getLighthouseHistory, saveLighthouseResult } from '../api/lighthouseHistory'
+import { performanceService } from '../firebase/performanceService'
+import dayjs from 'dayjs'
 
 const testing = ref(false)
 const showHistory = ref(false)
@@ -157,6 +162,7 @@ const lighthouseData = ref({})
 const historyData = ref([])
 const selectedDevice = ref('desktop')
 const url = 'https://www.vertu.com'
+const loading = ref(false)
 
 // 获取分数对应的颜色
 const getScoreColor = (percentage) => {
@@ -175,14 +181,13 @@ const getScoreClass = (score) => {
 // 获取标签类型
 const getScoreType = (score) => {
   if (score >= 90) return 'success'
-  if (score >= 50) return 'warning'
+  if (score >= 70) return 'warning'
   return 'danger'
 }
 
 // 格式化时间
 const formatTime = (timestamp) => {
-  if (!timestamp) return '-'
-  return new Date(timestamp).toLocaleString()
+  return dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss')
 }
 
 // 运行测试
@@ -191,7 +196,7 @@ const runTest = async () => {
   try {
     const result = await runLighthouseTest(url, { device: selectedDevice.value })
     lighthouseData.value = result
-    historyData.value = await saveLighthouseResult(result)
+    await recordPerformanceMetrics(result)
     ElMessage.success('性能测试完成')
   } catch (error) {
     console.error('Test failed:', error)
@@ -229,12 +234,40 @@ const metrics = computed(() => [
   }
 ])
 
-// 组件挂载时加载历史数据
-onMounted(async () => {
-  historyData.value = await getLighthouseHistory()
-  if (historyData.value.length > 0) {
-    lighthouseData.value = historyData.value[0]
+// 加载历史数据
+const loadHistoryData = async () => {
+  loading.value = true
+  try {
+    historyData.value = await performanceService.getPerformanceHistory()
+  } catch (error) {
+    console.error('Load history error:', error)
+    ElMessage.error('加载历史记录失败')
+  } finally {
+    loading.value = false
   }
+}
+
+// 记录新的性能测试数据
+const recordPerformanceMetrics = async (metrics) => {
+  try {
+    await performanceService.logPerformanceMetrics(metrics)
+    await loadHistoryData() // 刷新历史数据
+  } catch (error) {
+    console.error('Record metrics error:', error)
+    ElMessage.error('记录性能数据失败')
+  }
+}
+
+// 监听对话框打开
+watch(showHistory, async (newVal) => {
+  if (newVal) {
+    await loadHistoryData()
+  }
+})
+
+// 初始化
+onMounted(async () => {
+  await loadHistoryData()
 })
 </script>
 

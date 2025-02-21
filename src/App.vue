@@ -174,6 +174,12 @@
               </div>
             </div>
           </section> -->
+
+          <!-- Google Alerts -->
+          <section class="section-alerts">
+            <h2 class="section-title">Google Search Feed</h2>
+            <GoogleAlerts />
+          </section>
         </template>
       </main>
     </div>
@@ -192,6 +198,7 @@ import CoreMetrics from './components/CoreMetrics.vue'
 import FreeTrafficAnalysis from './components/FreeTrafficAnalysis.vue'
 import TrafficSourceAnalysis from './components/TrafficSourceAnalysis.vue'
 import PerformanceMetrics from './components/PerformanceMetrics.vue'
+import GoogleAlerts from './components/GoogleAlerts.vue'
 import {
   FullScreen as IconFullScreen,
   Close as IconClose,
@@ -214,6 +221,7 @@ import {
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { getDefaultDateRange } from './utils/dateUtils'
+import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 
 const loading = ref(false)
 const dateRange = ref(null)
@@ -778,6 +786,8 @@ const trafficData = ref({
     { keyword: "premium smartphone", position: 5, visits: 1567, trend: 2.8 }
   ]
 })
+
+const locale = ref(zhCn)
 </script>
 
 <style>
@@ -1388,5 +1398,10 @@ section {
 .dark .section-free-traffic {
   background: var(--el-bg-color);
   border: 1px solid var(--el-border-color-light);
+}
+
+.section-alerts {
+  margin-bottom: 24px;
+  padding: 0 24px;
 }
 </style> 
