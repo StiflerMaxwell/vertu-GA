@@ -1,59 +1,59 @@
 import { db } from './config'
-import { collection, addDoc, serverTimestamp, query, orderBy, limit, getDocs } from 'firebase/firestore'
+import { collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp } from 'firebase/firestore'
+
+const COLLECTION_NAME = 'performance_metrics'
 
 export const performanceService = {
   // 记录性能测试数据
-  async logPerformanceMetrics(metrics) {
+  async logPerformanceMetrics(metrics, url) {
     try {
-      const ipResponse = await fetch('https://api.ipify.org?format=json')
-      const ipData = await ipResponse.json()
-
-      // 获取设备类型
-      const device = window.innerWidth <= 768 ? 'mobile' : 'desktop'
-
-      await addDoc(collection(db, 'performanceMetrics'), {
-        // 性能指标
-        metrics: {
-          performance: metrics.performance, // 性能得分
-          fcp: metrics.fcp,                // First Contentful Paint
-          lcp: metrics.lcp,                // Largest Contentful Paint
-          cls: metrics.cls,                // Cumulative Layout Shift
-          tbt: metrics.tbt,                // Total Blocking Time
-        },
-        // 设备和环境信息
-        device,
+      await addDoc(collection(db, COLLECTION_NAME), {
+        metrics,
+        url,
+        device: window.innerWidth <= 768 ? 'mobile' : 'desktop',
         userAgent: navigator.userAgent,
         screenSize: `${window.screen.width}x${window.screen.height}`,
         viewport: `${window.innerWidth}x${window.innerHeight}`,
-        ip: ipData.ip,
-        // 时间信息
-        timestamp: serverTimestamp(),
-        date: new Date().toISOString().split('T')[0]
+        timestamp: serverTimestamp()
       })
     } catch (error) {
       console.error('Performance logging error:', error)
+      throw error
     }
   },
 
   // 获取历史性能数据
-  async getPerformanceHistory(limit = 100) {
+  async getPerformanceHistory(limitCount = 50) {
     try {
       const q = query(
-        collection(db, 'performanceMetrics'),
+        collection(db, COLLECTION_NAME),
         orderBy('timestamp', 'desc'),
-        limit(limit)
+        limit(limitCount)
       )
       
       const snapshot = await getDocs(q)
       return snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        // 确保 timestamp 是有效的日期对象
         timestamp: doc.data().timestamp?.toDate() || new Date()
       }))
     } catch (error) {
       console.error('Get performance history error:', error)
       return []
+    }
+  },
+
+  // 记录搜索性能数据
+  async logSearchPerformance(searchQuery, metrics, results) {
+    try {
+      await addDoc(collection(db, 'searchMetrics'), {
+        searchQuery,
+        metrics,
+        resultCount: results.searchInfo?.totalResults || 0,
+        timestamp: serverTimestamp()
+      })
+    } catch (error) {
+      console.error('Search performance logging error:', error)
     }
   }
 } 

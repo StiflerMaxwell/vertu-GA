@@ -113,6 +113,12 @@
               :key="`traffic-source-${dateKey}`"
             />
           </section>
+          
+          <!-- Google Alerts -->
+          <section class="section-alerts">
+              <h2 class="section-title">Google Search Feed</h2>
+            <GoogleAlerts />
+          </section>
 
           <!-- 性能指标分析 -->
           <section class="section-performance">
@@ -120,66 +126,7 @@
             <PerformanceMetrics />
           </section>
 
-          <!-- 添加数据洞察部分 -->
-          <!-- <section class="section-insights" v-if="trendInsights.length > 0">
-            <h2 class="section-title">数据洞察</h2>
-            <div class="insights-grid">
-              <el-card class="insight-card" v-for="(insight, index) in trendInsights" :key="index">
-                <template #header>
-                  <div class="insight-header">
-                    <el-icon :size="20" :color="insight.type === 'positive' ? '#67C23A' : '#F56C6C'">
-                      <component :is="insight.type === 'positive' ? 'ArrowUp' : 'ArrowDown'" />
-                    </el-icon>
-                    <span>{{ insight.title }}</span>
-                  </div>
-                </template>
-                <div class="insight-content">
-                  {{ insight.content }}
-                </div>
-              </el-card>
-            </div>
-          </section> -->
-
-          <!-- 用户分布区域 -->
-          <!-- <section class="section-distribution">
-            <h2 class="section-title">用户分布</h2>
-            <div class="distribution-grid">
-              <div class="distribution-item" v-if="geoData.length > 0">
-                <h3><el-icon><Location /></el-icon> 地域分布</h3>
-                <DistributionChart :data="geoData" />
-              </div>
-              <div class="distribution-item" v-if="deviceData.length > 0">
-                <h3><el-icon><Cellphone /></el-icon> 设备分布</h3>
-                <DistributionChart :data="deviceData" />
-              </div>
-              <div class="distribution-item" v-if="sourceData.length > 0">
-                <h3><el-icon><PieChart /></el-icon> 访问来源</h3>
-                <DistributionChart :data="sourceData" />
-              </div>
-            </div>
-          </section> -->
-
-          <!-- 用户行为指标 -->
-          <!-- <section class="section-behavior">
-            <h2 class="section-title">用户行为</h2>
-            <div class="behavior-metrics">
-              <div class="behavior-item" v-for="metric in behaviorMetrics" :key="metric.name">
-                <el-icon>
-                  <component :is="metric.icon" />
-                </el-icon>
-                <div class="metric-info">
-                  <div class="metric-name">{{ metric.name }}</div>
-                  <div class="metric-value">{{ metric.value }}</div>
-                </div>
-              </div>
-            </div>
-          </section> -->
-
-          <!-- Google Alerts -->
-          <section class="section-alerts">
-            <h2 class="section-title">Google Search Feed</h2>
-            <GoogleAlerts />
-          </section>
+        
         </template>
       </main>
     </div>
@@ -198,7 +145,7 @@ import CoreMetrics from './components/CoreMetrics.vue'
 import FreeTrafficAnalysis from './components/FreeTrafficAnalysis.vue'
 import TrafficSourceAnalysis from './components/TrafficSourceAnalysis.vue'
 import PerformanceMetrics from './components/PerformanceMetrics.vue'
-import GoogleAlerts from './components/GoogleAlerts.vue'
+import GoogleAlerts from './components/GoogleSearchFeed.vue'
 import {
   FullScreen as IconFullScreen,
   Close as IconClose,

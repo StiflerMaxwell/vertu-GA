@@ -1,14 +1,12 @@
+import { db } from './config'
 import { 
   collection, 
   query, 
   where, 
   getDocs, 
   addDoc, 
-  serverTimestamp,
-  orderBy,
-  limit 
+  serverTimestamp 
 } from 'firebase/firestore'
-import { db } from './config'
 import { searchContent } from '../api/googleSearch'
 import { statsService } from './statsService'
 
@@ -22,18 +20,22 @@ export const searchService = {
   async checkCache(searchQuery, options) {
     try {
       const cacheKey = this.generateCacheKey(searchQuery, options)
+      const now = new Date()
+      
       const q = query(
-        collection(db, 'searchResults'),
+        collection(db, 'search_results'),
         where('cacheKey', '==', cacheKey),
-        where('expiryTime', '>', new Date()),
-        orderBy('expiryTime'),
-        limit(1)
+        where('expiryTime', '>', now)
       )
       
       const snapshot = await getDocs(q)
       if (!snapshot.empty) {
-        const doc = snapshot.docs[0]
-        return { ...doc.data(), id: doc.id }
+        const doc = snapshot.docs[0].data()
+        return {
+          ...doc.results,
+          fromCache: true,
+          cacheTimestamp: doc.timestamp
+        }
       }
       return null
     } catch (error) {
@@ -47,42 +49,86 @@ export const searchService = {
     try {
       const cacheKey = this.generateCacheKey(searchQuery, options)
       const now = new Date()
-      
-      // 设置缓存过期时间（24小时）
+      // 设置缓存过期时间为24小时
       const expiryTime = new Date(now.getTime() + 24 * 60 * 60 * 1000)
 
-      await addDoc(collection(db, 'searchResults'), {
+      await addDoc(collection(db, 'search_results'), {
         cacheKey,
         searchQuery,
         options,
         results,
         timestamp: serverTimestamp(),
-        expiryTime
+        expiryTime,
+        device: window.innerWidth <= 768 ? 'mobile' : 'desktop',
+        userAgent: navigator.userAgent
       })
     } catch (error) {
       console.error('Cache save error:', error)
     }
   },
 
+  // 获取最新的搜索结果（不调用API）
+  async getLatestResults(searchQuery, options) {
+    try {
+      const cacheKey = this.generateCacheKey(searchQuery, options)
+      const q = query(
+        collection(db, 'search_results'),
+        where('cacheKey', '==', cacheKey),
+        where('expiryTime', '>', new Date())
+      )
+      
+      const snapshot = await getDocs(q)
+      if (!snapshot.empty) {
+        const doc = snapshot.docs[0].data()
+        return {
+          ...doc.results,
+          fromCache: true,
+          cacheTimestamp: doc.timestamp
+        }
+      }
+      return null
+    } catch (error) {
+      console.error('Get latest results error:', error)
+      return null
+    }
+  },
+
   // 执行搜索
-  async search(searchQuery, options) {
-    // 先检查缓存
-    const cachedResults = await this.checkCache(searchQuery, options)
-    if (cachedResults) {
-      console.log('Cache hit:', searchQuery)
-      return cachedResults.results
+  async search(searchQuery, options, forceRefresh = false) {
+    if (!searchQuery.trim()) {
+      return { items: [], searchInfo: {} }
     }
 
-    // 缓存未命中，调用 API
-    console.log('Cache miss:', searchQuery)
-    // 更新 API 调用统计
-    await statsService.updateApiCallStats()
-    
-    const results = await searchContent(searchQuery, options)
-    
-    // 保存到缓存
-    await this.saveToCache(searchQuery, options, results)
-    
-    return results
+    try {
+      // 如果不是强制刷新，先尝试获取缓存数据
+      if (!forceRefresh) {
+        const cachedResults = await this.getLatestResults(searchQuery, options)
+        if (cachedResults) {
+          console.log('Using cached results:', searchQuery)
+          return cachedResults
+        }
+      }
+
+      // 只有在强制刷新或没有缓存数据时才调用 API
+      const isLimitReached = await statsService.checkDailyLimit()
+      if (isLimitReached) {
+        throw new Error('Daily API call limit reached')
+      }
+
+      console.log('Fetching new results:', searchQuery)
+      const results = await searchContent(searchQuery, options)
+      
+      await statsService.updateApiCallStats()
+      await this.saveToCache(searchQuery, options, results)
+      
+      return {
+        ...results,
+        fromCache: false,
+        timestamp: new Date()
+      }
+    } catch (error) {
+      console.error('Search error:', error)
+      throw error
+    }
   }
 } 

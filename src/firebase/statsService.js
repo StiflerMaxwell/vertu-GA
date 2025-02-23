@@ -9,45 +9,101 @@ import {
   getDocs,
   orderBy,
   limit,
-  Timestamp 
+  Timestamp,
+  addDoc,
+  updateDoc,
+  serverTimestamp 
 } from 'firebase/firestore'
 import { db } from './config'
 
 export const statsService = {
-  // 更新每日 API 调用统计
-  async updateApiCallStats() {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    
-    const statsRef = doc(db, 'apiStats', today.toISOString().split('T')[0])
-    
+  // 获取今日调用次数
+  async getTodayCallCount() {
     try {
-      await setDoc(statsRef, {
-        date: Timestamp.fromDate(today),
-        calls: increment(1),
-        lastUpdated: Timestamp.now()
-      }, { merge: true })
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      
+      const q = query(
+        collection(db, 'api_stats'),
+        where('date', '>=', today)
+      )
+      
+      const snapshot = await getDocs(q)
+      if (!snapshot.empty) {
+        return snapshot.docs[0].data().callCount || 0
+      }
+      
+      // 如果没有今天的记录，创建一个新记录
+      await this.createTodayStats()
+      return 0
     } catch (error) {
-      console.error('Stats update error:', error)
+      console.error('Get call count error:', error)
+      return 0
     }
   },
 
-  // 获取今日 API 调用次数
-  async getTodayCallCount() {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    
+  // 创建今天的统计记录
+  async createTodayStats() {
     try {
-      const statsRef = doc(db, 'apiStats', today.toISOString().split('T')[0])
-      const snapshot = await getDoc(statsRef)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
       
-      if (snapshot.exists()) {
-        return snapshot.data().calls || 0
-      }
-      return 0
+      await addDoc(collection(db, 'api_stats'), {
+        date: today,
+        callCount: 0,
+        timestamp: serverTimestamp()
+      })
     } catch (error) {
-      console.error('Get today stats error:', error)
-      return 0
+      console.error('Create stats error:', error)
+    }
+  },
+
+  // 更新API调用统计
+  async updateApiCallStats() {
+    try {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      
+      const q = query(
+        collection(db, 'api_stats'),
+        where('date', '>=', today)
+      )
+      
+      const snapshot = await getDocs(q)
+      
+      if (!snapshot.empty) {
+        // 更新今天的记录
+        const docRef = doc(db, 'api_stats', snapshot.docs[0].id)
+        const currentCount = snapshot.docs[0].data().callCount || 0
+        await updateDoc(docRef, {
+          callCount: currentCount + 1,
+          lastUpdated: serverTimestamp()
+        })
+        return currentCount + 1
+      } else {
+        // 创建今天的记录
+        await addDoc(collection(db, 'api_stats'), {
+          date: today,
+          callCount: 1,
+          timestamp: serverTimestamp(),
+          lastUpdated: serverTimestamp()
+        })
+        return 1
+      }
+    } catch (error) {
+      console.error('Update API stats error:', error)
+      throw error
+    }
+  },
+
+  // 检查是否超过每日限制
+  async checkDailyLimit(limit = 100) {
+    try {
+      const count = await this.getTodayCallCount()
+      return count >= limit
+    } catch (error) {
+      console.error('Check limit error:', error)
+      return true // 出错时保守处理，认为已达到限制
     }
   },
 

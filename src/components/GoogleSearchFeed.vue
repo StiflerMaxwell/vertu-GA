@@ -220,34 +220,7 @@
         :description="searchOptions.lr === 'lang_zh-CN' ? '暂无搜索结果' : 'No results found'"
       />
     </div>
-
-    <!-- 性能指标显示 -->
-    <div v-if="Object.keys(searchMetrics).length" class="performance-metrics">
-      <el-descriptions 
-        :title="searchOptions.lr === 'lang_zh-CN' ? '搜索性能指标' : 'Search Performance Metrics'"
-        :column="3" 
-        border
-        size="small"
-      >
-        <el-descriptions-item 
-          :label="searchOptions.lr === 'lang_zh-CN' ? '响应时间' : 'Response Time'"
-        >
-          {{ formatMetric(searchMetrics.responseTime) }}ms
-        </el-descriptions-item>
-        <el-descriptions-item 
-          :label="searchOptions.lr === 'lang_zh-CN' ? '结果数量' : 'Result Count'"
-        >
-          {{ searchMetrics.resultCount }}
-        </el-descriptions-item>
-        <el-descriptions-item 
-          :label="searchOptions.lr === 'lang_zh-CN' ? '缓存命中' : 'Cache Hit'"
-        >
-          <el-tag :type="searchMetrics.cacheHit ? 'success' : 'info'">
-            {{ searchMetrics.cacheHit ? 'Yes' : 'No' }}
-          </el-tag>
-        </el-descriptions-item>
-      </el-descriptions>
-    </div>
+ 
   </el-card>
 </template>
 
@@ -296,13 +269,14 @@ const timeOptions = [
   { value: 'd1', label: 'Last 24 hours', labelZh: '最近24小时' },
   { value: 'w1', label: 'Last week', labelZh: '最近一周' },
   { value: 'm1', label: 'Last month', labelZh: '最近一月' },
-  { value: 'y1', label: 'Last year', labelZh: '最近一年' }
+  { value: 'y1', label: 'Last year', labelZh: '最近一年' },
+  { value: '', label: 'All time', labelZh: '所有时间' }
 ]
 
 // Sort options
 const sortOptions = [
   { value: 'date', label: 'Most recent', labelZh: '最新发布' },
-  { value: '', label: 'Most relevant', labelZh: '最相关' }
+  { value: 'relevance', label: 'Most relevant', labelZh: '最相关' }
 ]
 
 // Search options
@@ -422,7 +396,21 @@ const handleSearchOptionsChange = () => {
   handleSearch()
 }
 
-// 执行搜索
+// 初始化加载
+onMounted(async () => {
+  try {
+    // 首次加载时不强制刷新，只从缓存获取
+    const results = await searchService.search(searchQuery.value, searchOptions.value, false)
+    if (results) {
+      searchItems.value = results.items || []
+      searchInfo.value = results.searchInfo || {}
+    }
+  } catch (error) {
+    console.error('Initial load error:', error)
+  }
+})
+
+// 手动刷新搜索
 const handleSearch = async () => {
   if (!searchQuery.value.trim()) return
   
@@ -430,30 +418,8 @@ const handleSearch = async () => {
   searchStartTime.value = performance.now()
   
   try {
-    const searchParams = {
-      ...searchOptions.value,
-      start: ((currentPage.value - 1) * searchOptions.value.num) + 1
-    }
-
-    const results = await searchService.search(searchQuery.value, searchParams)
-    
-    // 计算搜索性能指标
-    const endTime = performance.now()
-    searchMetrics.value = {
-      responseTime: endTime - searchStartTime.value,
-      queryLength: searchQuery.value.length,
-      resultCount: results.searchInfo?.totalResults || 0,
-      cacheHit: results.fromCache || false,
-      timestamp: new Date().toISOString()
-    }
-
-    // 记录性能数据
-    await performanceService.logSearchPerformance(
-      searchQuery.value,
-      searchMetrics.value,
-      results
-    )
-    
+    // 手动搜索时强制刷新
+    const results = await searchService.search(searchQuery.value, searchOptions.value, true)
     searchInfo.value = results.searchInfo
     searchItems.value = results.items || []
   } catch (error) {
@@ -604,15 +570,15 @@ onMounted(async () => {
   try {
     const isConnected = await testFirebaseConnection()
     if (isConnected) {
-      ElMessage.success('Firebase connected successfully!')
+      ElMessage.success('Firebase 数据库连接成功!')
       await updateApiStats()
       await handleSearch() // 执行初始搜索
     } else {
-      ElMessage.error('Firebase connection failed')
+      ElMessage.error('Firebase 数据库连接失败!')
     }
   } catch (error) {
     console.error('Firebase test error:', error)
-    ElMessage.error(error.message || 'Firebase connection failed')
+    ElMessage.error(error.message || 'Firebase 数据库连接失败!')
   }
 })
 
@@ -750,24 +716,18 @@ const formatMetric = (value) => {
 
 .header-right {
   display: flex;
-  gap: 12px;
   align-items: center;
+  gap: 12px;
 }
 
 .lang-select,
 .time-select,
 .sort-select {
-  flex-shrink: 0;
-}
-
-.time-select,
-.sort-select {
-  width: 140px;
+  width: 160px;
 }
 
 .search-input {
   width: 300px;
-  flex-shrink: 0;
 }
 
 .item-meta {
@@ -1114,5 +1074,37 @@ const formatMetric = (value) => {
 :deep(.el-descriptions__title) {
   font-size: 14px;
   margin-bottom: 12px;
+}
+
+/* Select 组件样式 */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.time-select {
+  width: 200px;
+}
+
+.sort-select {
+  width: 180px;
+}
+
+:deep(.el-select__wrapper) {
+  display: flex !important;  /* 使用 flex 布局 */
+}
+
+.search-input {
+  width: 300px;
+}
+
+/* 暗黑模式适配 */
+:deep(.dark) {
+  .el-select {
+    .el-input__wrapper {
+      background-color: var(--el-bg-color);
+    }
+  }
 }
 </style> 

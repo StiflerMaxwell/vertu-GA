@@ -161,7 +161,7 @@ const showHistory = ref(false)
 const lighthouseData = ref({})
 const historyData = ref([])
 const selectedDevice = ref('desktop')
-const url = 'https://www.vertu.com'
+const url = ref('https://vertu.com')  // 或者从 props 传入
 const loading = ref(false)
 
 // 获取分数对应的颜色
@@ -190,17 +190,65 @@ const formatTime = (timestamp) => {
   return dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss')
 }
 
+// 加载最新的性能数据
+const loadLatestMetrics = async () => {
+  try {
+    const history = await performanceService.getPerformanceHistory(1) // 只获取最新的一条
+    if (history.length > 0) {
+      const latest = history[0]
+      lighthouseData.value = {
+        performance: latest.metrics.performance,
+        fcp: latest.metrics.fcp,
+        fcp_score: latest.metrics.fcp_score,
+        lcp: latest.metrics.lcp,
+        lcp_score: latest.metrics.lcp_score,
+        cls: latest.metrics.cls,
+        cls_score: latest.metrics.cls_score,
+        tbt: latest.metrics.tbt,
+        tbt_score: latest.metrics.tbt_score
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load latest metrics:', error)
+  }
+}
+
+// 加载历史数据
+const loadHistoryData = async () => {
+  loading.value = true
+  try {
+    historyData.value = await performanceService.getPerformanceHistory()
+  } catch (error) {
+    console.error('Failed to load history:', error)
+    ElMessage.error('Failed to load performance history')
+  } finally {
+    loading.value = false
+  }
+}
+
 // 运行测试
 const runTest = async () => {
+  if (testing.value) return
   testing.value = true
+  
   try {
-    const result = await runLighthouseTest(url, { device: selectedDevice.value })
+    const result = await runLighthouseTest(url.value, {
+      device: selectedDevice.value
+    })
+    
+    // 记录到数据库
+    await performanceService.logPerformanceMetrics(result, url.value)
+    
+    // 更新当前显示的数据
     lighthouseData.value = result
-    await recordPerformanceMetrics(result)
-    ElMessage.success('性能测试完成')
+    
+    // 重新加载历史数据
+    await loadHistoryData()
+    
+    ElMessage.success('Performance test completed')
   } catch (error) {
     console.error('Test failed:', error)
-    ElMessage.error('性能测试失败，请稍后重试')
+    ElMessage.error('Performance test failed')
   } finally {
     testing.value = false
   }
@@ -234,30 +282,6 @@ const metrics = computed(() => [
   }
 ])
 
-// 加载历史数据
-const loadHistoryData = async () => {
-  loading.value = true
-  try {
-    historyData.value = await performanceService.getPerformanceHistory()
-  } catch (error) {
-    console.error('Load history error:', error)
-    ElMessage.error('加载历史记录失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-// 记录新的性能测试数据
-const recordPerformanceMetrics = async (metrics) => {
-  try {
-    await performanceService.logPerformanceMetrics(metrics)
-    await loadHistoryData() // 刷新历史数据
-  } catch (error) {
-    console.error('Record metrics error:', error)
-    ElMessage.error('记录性能数据失败')
-  }
-}
-
 // 监听对话框打开
 watch(showHistory, async (newVal) => {
   if (newVal) {
@@ -266,8 +290,8 @@ watch(showHistory, async (newVal) => {
 })
 
 // 初始化
-onMounted(async () => {
-  await loadHistoryData()
+onMounted(() => {
+  loadLatestMetrics()
 })
 </script>
 
