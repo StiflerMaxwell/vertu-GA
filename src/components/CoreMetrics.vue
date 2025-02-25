@@ -187,13 +187,8 @@ const formatValue = (value, type) => {
     const seconds = Math.floor(value % 60)
     return `${minutes}分${seconds}秒`
   }
-  if (value >= 10000) {
-    return `${(value / 10000).toFixed(1)}w`
-  }
-  if (value >= 1000) {
-    return `${(value / 1000).toFixed(1)}k`
-  }
-  return value.toLocaleString()
+  if (!value && value !== 0) return '-'
+  return value.toString()
 }
 
 // 格式化趋势

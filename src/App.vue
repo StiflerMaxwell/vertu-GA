@@ -202,6 +202,14 @@ const behaviorMetrics = ref([
 
 const dateShortcuts = [
   {
+    text: 'T-2',
+    value: () => {
+      const date = new Date()
+      date.setDate(date.getDate() - 2)  // 2天前的日期
+      return [date, date]  // 返回同一天作为开始和结束
+    }
+  },
+  {
     text: '最近一周',
     value: () => {
       const end = new Date()
@@ -527,13 +535,10 @@ function updateDashboard(data) {
   }
 }
 
-// 优化的辅助函数
-function formatNumber(value) {
-  const num = Number(value);
-  if (num >= 10000) {
-    return (num / 10000).toFixed(1) + '万';
-  }
-  return num.toLocaleString();
+// 格式化数字，不使用缩写，直接显示完整数值
+const formatNumber = (num) => {
+  if (!num && num !== 0) return '-'
+  return num.toString().replace(/(\d)(?=(?:\d{3})+$)/g, '$1,')
 }
 
 function formatPercentage(value) {
