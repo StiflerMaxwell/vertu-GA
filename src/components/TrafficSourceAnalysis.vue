@@ -22,7 +22,7 @@
       <el-table 
         :data="sourceData" 
         style="width: 100%"
-        @sort-change="handleSortChange"
+        @sort-change="handleSourceSortChange"
         show-summary
         :summary-method="getSummaries"
       >
@@ -43,7 +43,7 @@
         </el-table-column>
 
         <el-table-column 
-          prop="sourceMedium" 
+          prop="medium" 
           label="媒介" 
           min-width="180"
           sortable="custom"
@@ -65,17 +65,6 @@
         </el-table-column>
         
         <el-table-column 
-          prop="users" 
-          label="访客数" 
-          min-width="120"
-          sortable="custom"
-        >
-          <template #default="{ row }">
-            <span class="table-cell-text">{{ formatNumber(row.users) }}</span>
-          </template>
-        </el-table-column>
-
-        <el-table-column 
           prop="visits" 
           label="访问量" 
           min-width="120"
@@ -83,6 +72,17 @@
         >
           <template #default="{ row }">
             <span class="table-cell-text">{{ formatNumber(row.visits) }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column 
+          prop="users" 
+          label="访客数" 
+          min-width="120"
+          sortable="custom"
+        >
+          <template #default="{ row }">
+            <span class="table-cell-text">{{ formatNumber(row.users) }}</span>
           </template>
         </el-table-column>
         
@@ -93,7 +93,12 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <span class="table-cell-text">{{ formatPercent(row.bounceRate) }}</span>
+            <span 
+              class="table-cell-text"
+              :class="{ 'warning-text': row.bounceRate > 0.7 }"
+            >
+              {{ formatPercent(row.bounceRate) }}
+            </span>
           </template>
         </el-table-column>
         
@@ -122,6 +127,140 @@
       </div>
     </div>
   </div>
+
+  <!-- 新增页面分析 -->
+  <div class="page-analysis" v-loading="pageLoading">
+    <div class="analysis-header">
+      <div class="title-section">
+        <h3 class="analysis-title">页面分析</h3>
+        <el-tag size="small" type="success">页面</el-tag>
+      </div>
+      
+      <div class="search-section">
+        <el-input
+          v-model="pageSearchKeyword"
+          placeholder="搜索页面路径"
+          :prefix-icon="Search"
+          clearable
+          @input="handlePageSearch"
+        />
+      </div>
+    </div>
+
+    <div class="page-table">
+      <el-table 
+        :data="pageData" 
+        style="width: 100%"
+        @sort-change="handlePageSortChange"
+        show-summary
+        :summary-method="getPageSummaries"
+      >
+        <el-table-column 
+          prop="pagePath" 
+          label="页面路径" 
+          min-width="300"
+          sortable="custom"
+        >
+          <template #default="{ row }">
+            <div class="page-info">
+              <el-link
+                :href="`https://vertu.com${row.pagePath}`"
+                type="primary"
+                target="_blank"
+                class="page-link"
+              >
+                {{ row.pagePath }}
+              </el-link>
+            </div>
+          </template>
+        </el-table-column>
+
+        <el-table-column 
+          prop="pageTitle" 
+          label="页面标题" 
+          min-width="200"
+          sortable="custom"
+        >
+          <template #default="{ row }">
+            <el-tooltip
+              :content="row.pageTitle"
+              placement="top"
+              :show-after="500"
+              max-width="300"
+            >
+              <span class="truncate-text">{{ row.pageTitle }}</span>
+            </el-tooltip>
+          </template>
+        </el-table-column>
+
+        <el-table-column 
+          prop="pageviews" 
+          label="浏览量" 
+          min-width="120"
+          sortable="custom"
+        >
+          <template #default="{ row }">
+            <span class="table-cell-text">{{ row.pageviews }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column 
+          prop="uniquePageviews" 
+          label="独立浏览量" 
+          min-width="120"
+          sortable="custom"
+        >
+          <template #default="{ row }">
+            <span class="table-cell-text">{{ row.uniquePageviews }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column 
+          prop="bounceRate" 
+          label="跳出率" 
+          min-width="100"
+          sortable="custom"
+        >
+          <template #default="{ row }">
+            <span 
+              class="table-cell-text"
+              :class="{ 'warning-text': row.bounceRate > 0.7 }"
+            >
+              {{ formatPercent(row.bounceRate) }}
+            </span>
+          </template>
+        </el-table-column>
+
+        <el-table-column 
+          prop="avgTimeOnPage" 
+          label="平均停留时长" 
+          min-width="120"
+          sortable="custom"
+        >
+          <template #default="{ row }">
+            <span 
+              class="table-cell-text"
+              :class="{ 'warning-text': row.avgTimeOnPage < 30 }"
+            >
+              {{ formatDuration(row.avgTimeOnPage) }}
+            </span>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <div class="pagination-container">
+        <el-pagination
+          v-model:current-page="pageCurrentPage"
+          v-model:page-size="pagePageSize"
+          :page-sizes="[20, 50, 100]"
+          :total="pageTotal"
+          layout="total, sizes, prev, pager, next"
+          @size-change="handlePageSizeChange"
+          @current-change="handlePageCurrentChange"
+        />
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
@@ -146,8 +285,8 @@ const loading = ref(false)
 const currentPage = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
-const currentSort = ref({
-  prop: 'totalUsers',
+const sourceCurrentSort = ref({
+  prop: 'visits',
   order: 'descending'
 })
 
@@ -182,7 +321,7 @@ const handleSizeChange = (size) => {
 }
 
 // 获取 GA4 API 对应的字段名
-const getOrderByField = (prop) => {
+const getSourceOrderByField = (prop) => {
   switch (prop) {
     case 'visits':
       return { metric: { metricName: 'screenPageViews' } }
@@ -194,7 +333,7 @@ const getOrderByField = (prop) => {
       return { metric: { metricName: 'averageSessionDuration' } }
     case 'source':
       return { dimension: { dimensionName: 'sessionSource' } }
-    case 'sourceMedium':
+    case 'medium':
       return { dimension: { dimensionName: 'sessionMedium' } }
     case 'campaign':
       return { dimension: { dimensionName: 'sessionCampaignName' } }
@@ -277,8 +416,8 @@ async function fetchData() {
       limit: pageSize.value,
       offset: (currentPage.value - 1) * pageSize.value,
       orderBys: [{
-        metric: { metricName: 'totalUsers' },
-        desc: true
+        ...getSourceOrderByField(sourceCurrentSort.value.prop),
+        desc: sourceCurrentSort.value.order === 'descending'
       }]
     }
 
@@ -349,16 +488,10 @@ async function fetchData() {
     total.value = pageResponse.rowCount || 0
 
   } catch (error) {
-    console.error('Error fetching traffic source data:', error)
-    ElMessage.error('获取数据失败')
+    console.error('Error fetching source data:', error)
+    ElMessage.error('获取来源数据失败')
     sourceData.value = []
     total.value = 0
-    totals.value = {
-      visits: 0,
-      users: 0,
-      bounceRate: 0,
-      avgDuration: 0
-    }
   } finally {
     loading.value = false
   }
@@ -465,16 +598,16 @@ const getSourceType = (source = '') => {
 }
 
 // 处理排序变化
-const handleSortChange = ({ prop, order }) => {
-  console.log('Sort changed:', { prop, order })
+const handleSourceSortChange = ({ prop, order }) => {
+  console.log('Source sort changed:', { prop, order })
   
   if (!prop || !order) {
-    currentSort.value = {
-      prop: 'totalUsers',
+    sourceCurrentSort.value = {
+      prop: 'visits',
       order: 'descending'
     }
   } else {
-    currentSort.value = { prop, order }
+    sourceCurrentSort.value = { prop, order }
   }
   
   currentPage.value = 1
@@ -522,6 +655,240 @@ const getSummaries = (param) => {
   
   return sums
 }
+
+// 页面分析相关的状态
+const pageLoading = ref(false)
+const pageCurrentPage = ref(1)
+const pagePageSize = ref(20)
+const pageTotal = ref(0)
+const pageSearchKeyword = ref('')
+const pageData = ref([])
+const pageTotals = ref({
+  pageviews: 0,
+  uniquePageviews: 0,
+  bounceRate: 0,
+  avgTimeOnPage: 0
+})
+
+// 页面排序状态
+const pageCurrentSort = ref({
+  prop: 'pageviews',
+  order: 'descending'
+})
+
+// 获取 GA4 API 对应的字段名
+const getPageOrderByField = (prop) => {
+  switch (prop) {
+    case 'pageviews':
+      return { metric: { metricName: 'screenPageViews' } }
+    case 'uniquePageviews':
+      return { metric: { metricName: 'totalUsers' } }
+    case 'bounceRate':
+      return { metric: { metricName: 'bounceRate' } }
+    case 'avgTimeOnPage':
+      return { metric: { metricName: 'averageSessionDuration' } }
+    case 'pagePath':
+      return { dimension: { dimensionName: 'pagePath' } }
+    case 'pageTitle':
+      return { dimension: { dimensionName: 'pageTitle' } }
+    default:
+      return { metric: { metricName: 'screenPageViews' } }
+  }
+}
+
+// 获取页面数据
+async function fetchPageData() {
+  if (!isValidDate(props.startDate) || !isValidDate(props.endDate)) {
+    return
+  }
+
+  pageLoading.value = true
+  
+  try {
+    const baseRequest = {
+      dateRanges: [{
+        startDate: props.startDate,
+        endDate: props.endDate
+      }],
+      dimensions: [
+        { name: 'pagePath' },
+        { name: 'pageTitle' }
+      ],
+      metrics: [
+        { name: 'screenPageViews' },
+        { name: 'totalUsers' },
+        { name: 'bounceRate' },
+        { name: 'averageSessionDuration' }
+      ]
+    }
+
+    // 添加搜索条件
+    const dimensionFilter = pageSearchKeyword.value ? {
+      filter: {
+        fieldName: 'pagePath',
+        stringFilter: {
+          matchType: 'CONTAINS',
+          value: pageSearchKeyword.value,
+          caseSensitive: false
+        }
+      }
+    } : undefined
+
+    // 分页请求
+    const pageRequest = {
+      ...baseRequest,
+      dimensionFilter,
+      limit: pagePageSize.value,
+      offset: (pageCurrentPage.value - 1) * pagePageSize.value,
+      orderBys: [{
+        ...getPageOrderByField(pageCurrentSort.value.prop),
+        desc: pageCurrentSort.value.order === 'descending'
+      }]
+    }
+
+    // 总计请求
+    const totalRequest = {
+      ...baseRequest,
+      dimensionFilter
+    }
+
+    const [pageResponse, totalResponse] = await Promise.all([
+      ga4Client.runReport(pageRequest),
+      ga4Client.runReport(totalRequest)
+    ])
+
+    // 处理页面数据
+    if (pageResponse?.rows?.length) {
+      pageData.value = pageResponse.rows.map(row => ({
+        pagePath: row.dimensionValues[0].value,
+        pageTitle: row.dimensionValues[1].value,
+        pageviews: parseInt(row.metricValues[0].value),
+        uniquePageviews: parseInt(row.metricValues[1].value),
+        bounceRate: parseFloat(row.metricValues[2].value),
+        avgTimeOnPage: parseFloat(row.metricValues[3].value)
+      }))
+    } else {
+      pageData.value = []
+    }
+
+    // 计算总计
+    if (totalResponse?.rows?.length) {
+      const totalPageviews = totalResponse.rows.reduce((sum, row) => 
+        sum + parseInt(row.metricValues[0].value), 0)
+      const totalUniquePageviews = totalResponse.rows.reduce((sum, row) => 
+        sum + parseInt(row.metricValues[1].value), 0)
+      
+      // 计算加权平均
+      const weightedBounceRate = totalResponse.rows.reduce((sum, row) => {
+        const views = parseInt(row.metricValues[0].value)
+        return sum + parseFloat(row.metricValues[2].value) * views
+      }, 0) / totalPageviews
+
+      const weightedTimeOnPage = totalResponse.rows.reduce((sum, row) => {
+        const views = parseInt(row.metricValues[0].value)
+        return sum + parseFloat(row.metricValues[3].value) * views
+      }, 0) / totalPageviews
+
+      pageTotals.value = {
+        pageviews: totalPageviews,
+        uniquePageviews: totalUniquePageviews,
+        bounceRate: weightedBounceRate,
+        avgTimeOnPage: weightedTimeOnPage
+      }
+    }
+
+    pageTotal.value = pageResponse.rowCount || 0
+  } catch (error) {
+    console.error('Error fetching page data:', error)
+    ElMessage.error('获取页面数据失败')
+    pageData.value = []
+    pageTotal.value = 0
+  } finally {
+    pageLoading.value = false
+  }
+}
+
+// 页面相关的处理函数
+const handlePageSearch = useDebounceFn(() => {
+  pageCurrentPage.value = 1
+  fetchPageData()
+}, 300)
+
+// 处理页面排序变化
+const handlePageSortChange = ({ prop, order }) => {
+  console.log('Page sort changed:', { prop, order })
+  
+  if (!prop || !order) {
+    pageCurrentSort.value = {
+      prop: 'pageviews',
+      order: 'descending'
+    }
+  } else {
+    pageCurrentSort.value = { prop, order }
+  }
+  
+  pageCurrentPage.value = 1
+  fetchPageData()
+}
+
+const handlePageSizeChange = (size) => {
+  pagePageSize.value = size
+  pageCurrentPage.value = 1
+  fetchPageData()
+}
+
+const handlePageCurrentChange = (page) => {
+  pageCurrentPage.value = page
+  fetchPageData()
+}
+
+const getPageSummaries = (param) => {
+  const { columns } = param
+  const sums = []
+  
+  columns.forEach((column, index) => {
+    if (index === 0) {
+      sums[index] = '总计'
+      return
+    }
+    
+    switch (column.property) {
+      case 'pageviews':
+        sums[index] = pageTotals.value.pageviews
+        break
+      case 'uniquePageviews':
+        sums[index] = pageTotals.value.uniquePageviews
+        break
+      case 'bounceRate':
+        sums[index] = formatPercent(pageTotals.value.bounceRate)
+        break
+      case 'avgTimeOnPage':
+        sums[index] = formatDuration(pageTotals.value.avgTimeOnPage)
+        break
+      default:
+        sums[index] = ''
+    }
+  })
+  
+  return sums
+}
+
+// 监听日期变化时同时更新页面数据
+watch(
+  [() => props.startDate, () => props.endDate],
+  ([newStart, newEnd]) => {
+    if (isValidDate(newStart) && isValidDate(newEnd)) {
+      fetchPageData()
+    }
+  }
+)
+
+// 初始化时加载页面数据
+onMounted(() => {
+  if (isValidDate(props.startDate) && isValidDate(props.endDate)) {
+    fetchPageData()
+  }
+})
 </script>
 
 <style scoped>
@@ -705,5 +1072,67 @@ const getSummaries = (param) => {
 
 :deep(.el-table__footer .cell) {
   padding: 12px 0;
+}
+
+.page-analysis {
+  margin-top: 24px;
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+}
+
+.page-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.page-link {
+  /* 确保长链接不会破坏布局 */
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 自定义链接颜色以匹配主题 */
+:deep(.el-link.el-link--primary) {
+  color: var(--el-color-primary);
+}
+
+:deep(.el-link.el-link--primary:hover) {
+  color: var(--el-color-primary-light-3);
+}
+
+.warning-text {
+  color: var(--el-color-danger);
+  font-weight: bold;
+}
+
+/* 可选：添加闪烁动画效果 */
+@keyframes warning-flash {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+.warning-text {
+  animation: warning-flash 2s infinite;
+}
+
+.truncate-text {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 可选：添加鼠标悬停样式 */
+.truncate-text:hover {
+  color: var(--el-color-primary);
+  cursor: pointer;
 }
 </style> 
