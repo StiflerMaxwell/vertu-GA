@@ -73,6 +73,12 @@
         <el-loading :full-screen="false" :element-loading-text="'加载中...'" v-if="loading" />
         
         <template v-else>
+          <!-- 添加实时流量监控组件 -->
+          <section class="section-realtime">
+            <h2 class="section-title">实时流量监控</h2>
+            <RealtimeTraffic />
+          </section>
+
           <!-- 核心指标卡片 -->
           <section class="section-core-metrics">
             <h2 class="section-title">核心指标</h2>
@@ -146,6 +152,7 @@ import FreeTrafficAnalysis from './components/FreeTrafficAnalysis.vue'
 import TrafficSourceAnalysis from './components/TrafficSourceAnalysis.vue'
 import PerformanceMetrics from './components/PerformanceMetrics.vue'
 import GoogleAlerts from './components/GoogleSearchFeed.vue'
+import RealtimeTraffic from './components/RealtimeTraffic.vue'
 import {
   FullScreen as IconFullScreen,
   Close as IconClose,
@@ -742,26 +749,7 @@ const trafficData = ref({
 const locale = ref(zhCn)
 </script>
 
-<style>
-/* 全局变量，保持不变 */
-:root {
-  --bg-color: #f8fafc;
-  --card-bg: #ffffff;
-  --text-color: #1a1a1a;
-  --border-color: rgba(0, 0, 0, 0.05);
-  --hover-color: rgba(0, 0, 0, 0.02);
-}
-
-:root.dark {
-  --bg-color: #1a1a1a;
-  --card-bg: #2c2c2c;
-  --text-color: #ffffff;
-  --border-color: rgba(255, 255, 255, 0.1);
-  --hover-color: rgba(255, 255, 255, 0.05);
-}
-</style>
-
-<style scoped>
+<style lang="scss" scoped>
 .dashboard {
   height: 100vh;
   overflow-y: auto; /* 添加滚动 */
@@ -813,7 +801,33 @@ const locale = ref(zhCn)
 .dashboard-content {
   flex: 1;
   width: 100%;
-  padding: 24px 32px;
+  padding: 24px;
+  
+  section {
+    margin-bottom: 32px;
+    position: relative;
+  }
+
+  .section-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+    margin-bottom: 20px;
+    padding-left: 16px;
+    position: relative;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 4px;
+      height: 16px;
+      background-color: var(--el-color-success);
+      border-radius: 2px;
+    }
+  }
 }
 
 .custom-date-picker {
@@ -861,31 +875,6 @@ section {
   border-radius: 20px;
   padding: 24px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-}
-
-.section-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: #ffffff;
-  margin-bottom: 24px;
-  padding-left: 16px;
-  border-left: 4px solid #00dc82;
-}
-
-/* 核心指标区域 */
-.data-cards {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
-}
-
-.data-cards > div {
-  flex: 1;
-  min-width: 280px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 16px;
-  padding: 24px;
-  transition: transform 0.3s ease;
 }
 
 /* 图表区域 */

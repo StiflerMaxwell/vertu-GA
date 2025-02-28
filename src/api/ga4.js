@@ -409,3 +409,100 @@ export const runGA4Report = async (requestBody) => {
     throw error
   }
 }
+
+// 添加实时数据获取方法
+export async function fetchRealtimeTraffic() {
+  try {
+    // 请求1：获取时间序列的活跃用户数据
+    const timeSeriesResponse = await ga4Client.runRealtimeReport({
+      dimensions: [
+        { name: 'minutesAgo' }
+      ],
+      metrics: [
+        { name: 'activeUsers' }
+      ],
+      minuteRanges: [
+        {
+          name: 'last29min',
+          startMinutesAgo: 29,
+          endMinutesAgo: 0
+        }
+      ]
+    });
+
+    // 请求2：获取页面数据
+    const pageViewsResponse = await ga4Client.runRealtimeReport({
+      dimensions: [
+        { name: 'unifiedScreenName' }  // 正确的维度名称
+      ],
+      metrics: [
+        { name: 'screenPageViews' },
+        { name: 'activeUsers' }
+      ],
+      minuteRanges: [
+        {
+          name: 'last29min',
+          startMinutesAgo: 29,
+          endMinutesAgo: 0
+        }
+      ]
+    });
+
+    // 请求3：获取事件数据
+    const eventsResponse = await ga4Client.runRealtimeReport({
+      dimensions: [
+        { name: 'eventName' }
+      ],
+      metrics: [
+        { name: 'eventCount' }
+      ],
+      minuteRanges: [
+        {
+          name: 'last29min',
+          startMinutesAgo: 29,
+          endMinutesAgo: 0
+        }
+      ]
+    });
+
+    // 修改请求4：使用 streamId 获取实时流量来源
+    const userSourceResponse = await ga4Client.runRealtimeReport({
+      dimensions: [
+        { name: 'streamId' }  // 使用 streamId 维度
+      ],
+      metrics: [
+        { name: 'activeUsers' }
+      ],
+      minuteRanges: [
+        {
+          name: 'last29min',
+          startMinutesAgo: 29,
+          endMinutesAgo: 0
+        }
+      ],
+      orderBys: [
+        {
+          metric: { metricName: 'activeUsers' },
+          desc: true
+        }
+      ]
+    });
+
+    return {
+      timeSeriesData: timeSeriesResponse,
+      pageViewsData: pageViewsResponse,
+      eventsData: eventsResponse,
+      userSourceData: userSourceResponse.rows?.map(row => {
+        // streamId 格式通常是 "来源 / 媒介"
+        const streamValue = row.dimensionValues[0].value || 'direct / none';
+        return {
+          source: streamValue,
+          users: parseInt(row.metricValues[0].value, 10)
+        };
+      }) || []
+    }
+  } catch (error) {
+    console.error('GA4 Realtime API Error:', error)
+    throw error
+  }
+}
