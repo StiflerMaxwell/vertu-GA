@@ -433,7 +433,7 @@ export async function fetchRealtimeTraffic() {
     // 请求2：获取页面数据
     const pageViewsResponse = await ga4Client.runRealtimeReport({
       dimensions: [
-        { name: 'unifiedScreenName' }  // 正确的维度名称
+        { name: 'unifiedScreenName' }
       ],
       metrics: [
         { name: 'screenPageViews' },
@@ -465,41 +465,10 @@ export async function fetchRealtimeTraffic() {
       ]
     });
 
-    // 修改请求4：使用 streamId 获取实时流量来源
-    const userSourceResponse = await ga4Client.runRealtimeReport({
-      dimensions: [
-        { name: 'streamId' }  // 使用 streamId 维度
-      ],
-      metrics: [
-        { name: 'activeUsers' }
-      ],
-      minuteRanges: [
-        {
-          name: 'last29min',
-          startMinutesAgo: 29,
-          endMinutesAgo: 0
-        }
-      ],
-      orderBys: [
-        {
-          metric: { metricName: 'activeUsers' },
-          desc: true
-        }
-      ]
-    });
-
     return {
       timeSeriesData: timeSeriesResponse,
       pageViewsData: pageViewsResponse,
-      eventsData: eventsResponse,
-      userSourceData: userSourceResponse.rows?.map(row => {
-        // streamId 格式通常是 "来源 / 媒介"
-        const streamValue = row.dimensionValues[0].value || 'direct / none';
-        return {
-          source: streamValue,
-          users: parseInt(row.metricValues[0].value, 10)
-        };
-      }) || []
+      eventsData: eventsResponse
     }
   } catch (error) {
     console.error('GA4 Realtime API Error:', error)

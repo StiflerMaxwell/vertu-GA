@@ -1,47 +1,38 @@
 <template>
-  <section class="realtime-traffic">
-    <div class="overview-row">
-      <ActiveUsersCard 
-        :last30MinUsers="last29Min"
-        :last5MinUsers="last5Min"
-        :timeSeriesData="timeSeriesData"
-        :loading="loading"
-        :lastUpdateTime="lastUpdateTime"
-        @refresh="fetchData"
-        class="!border-none"
-      />
-    </div>
+  <div class="realtime-traffic">
+    <div class="metrics-container" v-loading="loading">
+      <div class="overview-row">
+        <ActiveUsersCard 
+          :last30-min-users="last29Min"
+          :last5-min-users="last5Min"
+          :time-series-data="timeSeriesData"
+          :last-update-time="lastUpdateTime"
+          @refresh="fetchData"
+          class="!border-none"
+        />
+      </div>
 
-    <div class="stats-row">
-      <UserSourceCard 
-        :sourceData="userSourceData"
-        :loading="loading"
-        :lastUpdateTime="lastUpdateTime"
-        @refresh="fetchData"
-        class="!border-none"
-      />
-      <PageViewsCard 
-        :page-views-data="pageViewsData"
-        :loading="loading"
-        :lastUpdateTime="lastUpdateTime"
-        @refresh="fetchData"
-        class="!border-none"
-      />
-      <EventsCard 
-        :eventsData="eventsData"
-        :loading="loading"
-        :lastUpdateTime="lastUpdateTime"
-        @refresh="fetchData"
-        class="!border-none"
-      />
+      <div class="stats-row">
+        <PageViewsCard 
+          :page-views-data="pageViewsData"
+          :last-update-time="lastUpdateTime"
+          @refresh="fetchData"
+          class="!border-none"
+        />
+        <EventsCard 
+          :events-data="eventsData"
+          :last-update-time="lastUpdateTime"
+          @refresh="fetchData"
+          class="!border-none"
+        />
+      </div>
     </div>
-  </section>
+  </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import ActiveUsersCard from './cards/ActiveUsersCard.vue'
-import UserSourceCard from './cards/UserSourceCard.vue'
 import PageViewsCard from './cards/PageViewsCard.vue'
 import EventsCard from './cards/EventsCard.vue'
 import { fetchRealtimeTraffic } from '../api/ga4'
@@ -53,7 +44,6 @@ const lastUpdateTime = ref('')
 const timeSeriesData = ref([])
 const last5Min = ref(0)
 const last29Min = ref(0)
-const userSourceData = ref([])
 const pageViewsData = ref([])
 const eventsData = ref([])
 
@@ -65,20 +55,20 @@ const fetchData = async () => {
 
     // 处理时间序列数据
     if (response?.timeSeriesData?.rows) {
-      // 按分钟数降序排序（从最近的时间开始）
+      // 按分钟数升序排序（从最早的时间开始）
       const sortedData = [...response.timeSeriesData.rows]
         .sort((a, b) => {
-          return parseInt(b.dimensionValues[0].value) - parseInt(a.dimensionValues[0].value)
+          return parseInt(a.dimensionValues[0].value) - parseInt(b.dimensionValues[0].value)
         })
         .slice(0, 30) // 确保最多30条数据
 
-      // 更新图表数据（反转数组使其从最早到最近排序）
+      // 更新图表数据（反转数组，使其从大到小排序）
       timeSeriesData.value = sortedData
-        .reverse()
         .map(row => ({
           time: `${row.dimensionValues[0].value}分钟前`,
           value: parseInt(row.metricValues[0].value)
         }))
+        .reverse() // 反转数组，使时间从大到小排序
 
       // 计算最近5分钟活跃用户
       const last5MinData = sortedData.filter(row => parseInt(row.dimensionValues[0].value) <= 5)
@@ -90,12 +80,6 @@ const fetchData = async () => {
       last29Min.value = sortedData.reduce((sum, row) => {
         return sum + parseInt(row.metricValues[0].value)
       }, 0)
-
-      console.log('处理后的数据:', {
-        timeSeriesData: timeSeriesData.value,
-        last5MinUsers: last5Min.value,
-        last30MinUsers: last29Min.value
-      })
     }
 
     // 处理页面浏览数据
@@ -108,11 +92,6 @@ const fetchData = async () => {
       eventsData.value = response.eventsData.rows
     }
 
-    // 处理用户来源数据
-    if (response?.userSourceData) {
-      userSourceData.value = response.userSourceData
-    }
-
     lastUpdateTime.value = dayjs().format('HH:mm:ss')
   } catch (error) {
     console.error('数据获取失败:', error)
@@ -120,7 +99,6 @@ const fetchData = async () => {
     timeSeriesData.value = []
     last5Min.value = 0
     last29Min.value = 0
-    userSourceData.value = []
     pageViewsData.value = []
     eventsData.value = []
   } finally {
@@ -148,6 +126,21 @@ startAutoRefresh()
 .realtime-traffic {
   background-color: var(--el-bg-color);
   color: var(--el-text-color-primary);
+}
+
+.metrics-container {
+  margin-bottom: 24px;
+
+  :deep(.el-loading-mask) {
+    background-color: var(--el-mask-color);
+    .el-loading-spinner {
+      .circular {
+        .path {
+          stroke: var(--el-color-primary);
+        }
+      }
+    }
+  }
 }
 
 .overview-row,

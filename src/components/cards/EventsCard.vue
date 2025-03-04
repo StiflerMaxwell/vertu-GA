@@ -1,9 +1,8 @@
 <template>
-  <el-card class="events-card !border-none" :class="{ loading }">
+  <el-card class="events-card !border-none">
     <template #header>
       <div class="card-header">
         <span class="title">实时事件</span>
-         
       </div>
     </template>
 
@@ -13,8 +12,18 @@
           {{ formatEventName(row.eventName) }}
         </template>
       </el-table-column>
-      <el-table-column prop="eventCount" label="事件次数" width="120" align="right" />
+      <el-table-column 
+        prop="eventCount" 
+        label="事件次数" 
+        width="150" 
+        align="right"
+        sortable
+      />
     </el-table>
+
+    <div v-if="!tableData || tableData.length === 0" class="no-data">
+      暂无数据
+    </div>
   </el-card>
 </template>
 
@@ -25,10 +34,6 @@ const props = defineProps({
   eventsData: {
     type: Array,
     default: () => []
-  },
-  loading: {
-    type: Boolean,
-    default: false
   },
   lastUpdateTime: {
     type: String,

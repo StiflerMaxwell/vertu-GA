@@ -1,7 +1,8 @@
 <template>
-  <el-card class="active-users-card !border-none" :class="{ loading }">
+  <el-card class="active-users-card !border-none">
     <template #header>
       <div class="card-header">
+        <div class="header-left"></div>
         <span class="title">实时活跃用户</span>
         <div class="header-right">
           <el-tag size="small" type="success" effect="plain" class="update-time">
@@ -12,24 +13,26 @@
       </div>
     </template>
 
-    <div class="metrics-grid">
-      <div class="metric-box">
-        <div class="metric-title">最近30分钟活跃用户</div>
-        <div class="metric-value">{{ last30MinUsers || 0 }}</div>
+    <div class="card-content">
+      <div class="metrics-grid">
+        <div class="metric-box">
+          <div class="metric-title">最近30分钟活跃用户</div>
+          <div class="metric-value">{{ last30MinUsers || 0 }}</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-title">最近5分钟活跃用户</div>
+          <div class="metric-value">{{ last5MinUsers || 0 }}</div>
+        </div>
       </div>
-      <div class="metric-box">
-        <div class="metric-title">最近5分钟活跃用户</div>
-        <div class="metric-value">{{ last5MinUsers || 0 }}</div>
-      </div>
-    </div>
 
-    <div class="trend-chart" ref="chartRef"></div>
+      <div class="trend-chart" ref="chartRef"></div>
+    </div>
   </el-card>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted, watch, computed, watchEffect } from 'vue'
-import { RefreshRight } from '@element-plus/icons-vue'
+import { RefreshRight, Loading } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 
 const props = defineProps({
@@ -44,10 +47,6 @@ const props = defineProps({
   timeSeriesData: {
     type: Array,
     default: () => []
-  },
-  loading: {
-    type: Boolean,
-    default: false
   },
   lastUpdateTime: {
     type: String,
@@ -70,15 +69,12 @@ watchEffect(() => {
     last30MinUsers: props.last30MinUsers,
     last5MinUsers: props.last5MinUsers,
     timeSeriesData: props.timeSeriesData,
-    loading: props.loading,
     lastUpdateTime: props.lastUpdateTime
   })
 })
 
 const updateChart = () => {
   if (!chartRef.value) return
-  
-  console.log('Updating chart with data:', props.timeSeriesData)
   
   try {
     if (!chart) {
@@ -101,13 +97,18 @@ const updateChart = () => {
         type: 'category',
         boundaryGap: false,
         data: props.timeSeriesData.map(item => item.time),
-        axisLabel: {
-          interval: 4
+         
+        axisLine: {
+          show: false  // 隐藏 X 轴线
+        },
+        axisTick: {
+          show: false  // 隐藏刻度线
         }
       },
       yAxis: {
         type: 'value',
-        minInterval: 1
+        minInterval: 1,
+         
       },
       series: [{
         name: '活跃用户',
@@ -126,7 +127,6 @@ const updateChart = () => {
       }]
     }
 
-    console.log('Chart option:', option)
     chart.setOption(option)
   } catch (error) {
     console.error('Error updating chart:', error)
@@ -160,63 +160,83 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 .active-users-card {
-  transition: opacity 0.3s;
+  :deep(.el-card) {
+    background-color: var(--bg-primary);
+    border: none;
+    
+    .el-card__body {
+      padding: 0;
+      background-color: var(--bg-primary);
+    }
 
-  &.loading {
-    opacity: 0.6;
-    pointer-events: none;
+    .el-card__header {
+      padding: 12px 16px;
+      background-color: var(--bg-primary);
+      border-bottom: 1px solid var(--border-color);
+    }
   }
 }
 
 .card-header {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
+  gap: 16px;
 
   .title {
-    font-size: 16px;
-    font-weight: 500;
+    @apply text-lg font-medium text-gray-900 dark:text-gray-100;
+    text-align: center;
   }
+}
 
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+.header-left {
+  // 占位用，保持对称
+}
 
-    .update-time {
-      font-size: 12px;
-    }
-  }
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-self: end;
+}
+
+.update-time {
+  margin-right: 8px;
+}
+
+.card-content {
+  position: relative;
+  min-height: 200px;
+  padding: 16px;
 }
 
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .metric-box {
   padding: 16px;
   border-radius: 8px;
+  background-color: var(--bg-secondary);
+}
 
-  .metric-title {
-    font-size: 16px;
-    font-weight: 500;
-    color: var(--el-text-color-primary);
-    margin-bottom: 12px;
-    opacity: 0.9;
-  }
+.metric-title {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 8px;
+}
 
-  .metric-value {
-    font-size: 24px;
-    font-weight: bold;
-    color: var(--el-text-color-primary);
-  }
+.metric-value {
+  color: var(--text-primary);
+  font-size: 24px;
+  font-weight: 600;
 }
 
 .trend-chart {
   height: 300px;
-  margin-top: 16px;
+  width: 100%;
 }
 </style> 

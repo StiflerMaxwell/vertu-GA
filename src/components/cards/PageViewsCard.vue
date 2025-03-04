@@ -1,55 +1,39 @@
 <template>
-  <el-card class="page-views-card !border-none" :class="{ loading }">
+  <el-card class="page-views-card !border-none">
     <template #header>
       <div class="card-header">
-        <span class="title">页面浏览</span>
+        <span class="title">实时页面浏览</span>
       </div>
     </template>
 
     <el-table 
-      :data="currentPageData" 
+      :data="tableData" 
+      style="width: 100%" 
       :max-height="400"
-      v-loading="loading"
     >
-      <el-table-column 
-        label="页面路径" 
-        prop="title" 
-        min-width="260"
-        show-overflow-tooltip 
-      >
+      <el-table-column prop="pageName" label="页面名称" min-width="180">
         <template #default="{ row }">
-          <a 
-            :href="row.title" 
-            target="_blank" 
-            class="page-link"
-          >{{ formatPageName(row.title) }}</a>
+          <span class="page-name">{{ formatPageName(row.pageName) }}</span>
         </template>
       </el-table-column>
-      
       <el-table-column 
-        label="用户数" 
-        prop="users" 
-        width="100"
-        sortable 
-      />
-      
-      <el-table-column 
+        prop="pageViews" 
         label="浏览量" 
-        prop="views" 
-        width="100"
-        sortable 
+        width="150" 
+        align="right"
+        sortable
+      />
+      <el-table-column 
+        prop="activeUsers" 
+        label="活跃用户" 
+        width="150" 
+        align="right"
+        sortable
       />
     </el-table>
 
-    <div class="pagination-container" v-if="totalPages > 1">
-      <el-pagination
-        :current-page="currentPage"
-        :page-size="pageSize"
-        :total="totalItems"
-        :page-count="totalPages"
-        layout="prev, pager, next"
-        @current-change="handlePageChange"
-      />
+    <div v-if="!tableData || tableData.length === 0" class="no-data">
+      暂无数据
     </div>
   </el-card>
 </template>
@@ -62,19 +46,10 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
-  loading: {
-    type: Boolean,
-    default: false
-  },
   lastUpdateTime: {
     type: String,
     default: ''
   }
-})
-
-// 添加调试日志
-watchEffect(() => {
-  console.log('PageViewsCard received data:', props.pageViewsData)
 })
 
 const pageSize = 6
@@ -89,7 +64,7 @@ watchEffect(() => {
 
 const tableData = computed(() => {
   return props.pageViewsData.map(item => ({
-    pageName: item.dimensionValues?.[0]?.value || '',
+    pageName: item.dimensionValues?.[0]?.value?.replace(/https?:\/\/[^\/]+/i, '') || '',
     pageViews: parseInt(item.metricValues?.[0]?.value) || 0,
     activeUsers: parseInt(item.metricValues?.[1]?.value) || 0
   }))
@@ -235,31 +210,29 @@ const handlePageChange = (page) => {
   }
 }
 
-.title-cell {
-  @apply flex flex-col;
-
-  .page-title {
-    @apply text-gray-900 dark:text-gray-100;
-  }
-
-  .page-path {
-    @apply text-xs text-gray-500 dark:text-gray-400 mt-1;
-  }
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.percentage-wrapper {
-  @apply flex items-center gap-3;
+.update-time {
+  margin-right: 8px;
+}
 
-  .percentage-bar-container {
-    @apply flex-1 h-2 bg-gray-100 dark:bg-dark-300 rounded-full overflow-hidden;
-  }
+.no-data {
+  text-align: center;
+  padding: 20px;
+  color: var(--el-text-color-secondary);
+}
 
-  .percentage-bar {
-    @apply h-full bg-primary rounded-full transition-all duration-300;
-  }
+.page-name {
+  color: var(--el-text-color-primary);
+  text-decoration: none;
+  cursor: default;
+}
 
-  .percentage-value {
-    @apply min-w-[50px] text-right text-gray-600 dark:text-gray-300;
-  }
+:deep(.el-table .cell) {
+  color: var(--el-text-color-primary);
 }
 </style> 
