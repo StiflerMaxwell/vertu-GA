@@ -34,6 +34,7 @@
 import { ref, onMounted, onUnmounted, watch, computed, watchEffect } from 'vue'
 import { RefreshRight, Loading } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
+import { ElMessage } from 'element-plus'
 
 const props = defineProps({
   last30MinUsers: {
@@ -56,12 +57,32 @@ const props = defineProps({
 
 const emits = defineEmits(['refresh'])
 
-const handleRefresh = () => {
-  emits('refresh')
+const handleRefresh = async () => {
+  try {
+    const result = await emits('refresh')
+    if (result?.error === 'QUOTA_EXCEEDED') {
+      ElMessage.warning('API 配额已用完，将在 1 小时后恢复')
+      // 调整下次刷新时间
+      if (timer) {
+        clearInterval(timer)
+        // 1小时后重新开始定时刷新
+        setTimeout(() => {
+          timer = setInterval(() => {
+            handleRefresh()
+          }, REFRESH_INTERVAL)
+        }, 3600000)
+      }
+    }
+  } catch (error) {
+    console.error('Refresh failed:', error)
+  }
 }
 
 const chartRef = ref(null)
 let chart = null
+
+// 修改刷新间隔为 10 分钟
+const REFRESH_INTERVAL = 600000 // 从 300000 改为 600000
 
 // 添加调试日志
 watchEffect(() => {
@@ -142,8 +163,18 @@ watch(() => props.timeSeriesData, (newVal) => {
 
 onMounted(() => {
   updateChart()
+  // 添加窗口大小变化监听
   window.addEventListener('resize', () => {
     chart?.resize()
+  })
+
+  // 设置定时刷新
+  const timer = setInterval(() => {
+    handleRefresh() // 使用已定义的 handleRefresh 方法而不是 fetchData
+  }, REFRESH_INTERVAL)
+
+  onUnmounted(() => {
+    clearInterval(timer)
   })
 })
 

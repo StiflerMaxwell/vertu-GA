@@ -136,6 +136,11 @@ class GA4Client {
       
       return response.data;
     } catch (error) {
+      if (error.response?.data?.error?.code === 429) {
+        console.warn('API quota exceeded, will retry in 1 hour');
+        // 可以在这里触发一个事件通知用户
+        throw new Error('API_QUOTA_EXCEEDED');
+      }
       console.error('GA4 Realtime API Error:', error);
       throw error;
     }
@@ -410,10 +415,12 @@ export const runGA4Report = async (requestBody) => {
   }
 }
 
-// 添加实时数据获取方法
+// 修改实时数据获取方法
 export async function fetchRealtimeTraffic() {
   try {
-    // 请求1：获取时间序列的活跃用户数据
+    // 增加请求间隔到 10 分钟
+    const REFRESH_INTERVAL = 600000; // 10 minutes
+    
     const timeSeriesResponse = await ga4Client.runRealtimeReport({
       dimensions: [
         { name: 'minutesAgo' }
@@ -468,10 +475,17 @@ export async function fetchRealtimeTraffic() {
     return {
       timeSeriesData: timeSeriesResponse,
       pageViewsData: pageViewsResponse,
-      eventsData: eventsResponse
+      eventsData: eventsResponse,
+      nextRefresh: Date.now() + REFRESH_INTERVAL
     }
   } catch (error) {
-    console.error('GA4 Realtime API Error:', error)
-    throw error
+    if (error.message === 'API_QUOTA_EXCEEDED') {
+      // 如果配额超限，返回特殊状态
+      return {
+        error: 'QUOTA_EXCEEDED',
+        nextRefresh: Date.now() + 3600000 // 1 hour
+      }
+    }
+    throw error;
   }
 }

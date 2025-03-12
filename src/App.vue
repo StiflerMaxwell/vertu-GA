@@ -101,15 +101,6 @@
             </div>
           </section>
 
-          <!-- 免费流量分析 -->
-          <section class="section-free-traffic">
-            <h2 class="section-title">免费流量分析</h2>
-            <FreeTrafficAnalysis 
-              :start-date="startDate" 
-              :end-date="endDate"
-            />
-          </section>
-
           <!-- 访问来源分析 -->
           <section class="section-source">
             <h2 class="section-title">访问来源分析</h2>
@@ -120,6 +111,15 @@
             />
           </section>
           
+           <!-- 免费流量分析 -->
+           <section class="section-free-traffic">
+            <h2 class="section-title">免费流量分析</h2>
+            <FreeTrafficAnalysis 
+              :start-date="startDate" 
+              :end-date="endDate"
+            />
+          </section>
+
           <!-- Google Alerts -->
           <section class="section-alerts">
               <h2 class="section-title">Google Search Feed</h2>

@@ -66,7 +66,7 @@
         
         <el-table-column 
           prop="visits" 
-          label="访问量" 
+          label="会话数" 
           min-width="120"
           sortable="custom"
         >
@@ -110,6 +110,28 @@
         >
           <template #default="{ row }">
             <span class="table-cell-text">{{ formatDuration(row.avgDuration) }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column 
+          prop="addToCarts" 
+          label="加购数" 
+          min-width="90"
+          sortable="custom"
+        >
+          <template #default="{ row }">
+            <span class="table-cell-text">{{ formatNumber(row.addToCarts) }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column 
+          prop="checkouts" 
+          label="发结数" 
+          min-width="90"
+          sortable="custom"
+        >
+          <template #default="{ row }">
+            <span class="table-cell-text">{{ formatNumber(row.checkouts) }}</span>
           </template>
         </el-table-column>
       </el-table>
@@ -298,7 +320,9 @@ const totals = ref({
   visits: 0,
   users: 0,
   bounceRate: 0,
-  avgDuration: 0
+  avgDuration: 0,
+  addToCarts: 0,
+  checkouts: 0
 })
 
 // 使用防抖来避免频繁请求
@@ -308,14 +332,14 @@ const debouncedSearch = useDebounceFn(() => {
 }, 300)
 
 // 处理页码变化
-const handleCurrentChange = (page) => {
-  currentPage.value = page
+const handleCurrentChange = (val) => {
+  currentPage.value = val
   fetchData()
 }
 
 // 处理每页条数变化
-const handleSizeChange = (size) => {
-  pageSize.value = size
+const handleSizeChange = (val) => {
+  pageSize.value = val
   currentPage.value = 1
   fetchData()
 }
@@ -324,21 +348,25 @@ const handleSizeChange = (size) => {
 const getSourceOrderByField = (prop) => {
   switch (prop) {
     case 'visits':
-      return { metric: { metricName: 'screenPageViews' } }
+      return { metric: { metricName: 'sessions' } }
     case 'users':
-      return { metric: { metricName: 'totalUsers' } }
+      return { metric: { metricName: 'activeUsers' } }
     case 'bounceRate':
       return { metric: { metricName: 'bounceRate' } }
     case 'avgDuration':
       return { metric: { metricName: 'averageSessionDuration' } }
     case 'source':
-      return { dimension: { dimensionName: 'sessionSource' } }
+      return { dimension: { dimensionName: 'firstUserSource' } }
     case 'medium':
-      return { dimension: { dimensionName: 'sessionMedium' } }
+      return { dimension: { dimensionName: 'firstUserMedium' } }
     case 'campaign':
-      return { dimension: { dimensionName: 'sessionCampaignName' } }
+      return { dimension: { dimensionName: 'firstUserCampaignName' } }
+    case 'addToCarts':
+      return { metric: { metricName: 'addToCarts' } }
+    case 'checkouts':
+      return { metric: { metricName: 'checkouts' } }
     default:
-      return { metric: { metricName: 'screenPageViews' } }
+      return { metric: { metricName: 'sessions' } }
   }
 }
 
@@ -352,67 +380,132 @@ async function fetchData() {
   loading.value = true
   
   try {
-    // 构建基础请求体
+    // 修改基础请求和总计数据请求，移除不支持的 timeZone 参数
     const baseRequest = {
       dateRanges: [{
         startDate: props.startDate,
         endDate: props.endDate
       }],
+      dimensions: [
+        { name: 'firstUserSource' },
+        { name: 'firstUserMedium' },
+        { name: 'firstUserCampaignName' }
+      ],
       metrics: [
-        { name: 'screenPageViews' },
-        { name: 'totalUsers' },
-        { name: 'bounceRate' },
-        { name: 'averageSessionDuration' }
+        { name: 'sessions' },                // 会话数
+        { name: 'activeUsers' },             // 活跃用户数（访客数）
+        { name: 'bounceRate' },              // 跳出率
+        { name: 'averageSessionDuration' },  // 平均会话时长
+        { name: 'addToCarts' },              // 加购数
+        { name: 'checkouts' }                // 结账数
       ]
     }
 
-    // 添加搜索条件
-    const dimensionFilter = searchKeyword.value ? {
-      orGroup: {
-        expressions: [
-          {
-            filter: {
-              fieldName: 'sessionSource',
-              stringFilter: {
-                matchType: 'CONTAINS',
-                value: searchKeyword.value,
-                caseSensitive: false
+    // 添加搜索过滤条件
+    if (searchKeyword.value) {
+      baseRequest.dimensionFilter = {
+        orGroup: {
+          expressions: [
+            {
+              filter: {
+                fieldName: 'firstUserSource',
+                stringFilter: {
+                  matchType: 'CONTAINS',
+                  value: searchKeyword.value,
+                  caseSensitive: false
+                }
+              }
+            },
+            {
+              filter: {
+                fieldName: 'firstUserMedium',
+                stringFilter: {
+                  matchType: 'CONTAINS',
+                  value: searchKeyword.value,
+                  caseSensitive: false
+                }
+              }
+            },
+            {
+              filter: {
+                fieldName: 'firstUserCampaignName',
+                stringFilter: {
+                  matchType: 'CONTAINS',
+                  value: searchKeyword.value,
+                  caseSensitive: false
+                }
               }
             }
-          },
-          {
-            filter: {
-              fieldName: 'sessionMedium',
-              stringFilter: {
-                matchType: 'CONTAINS',
-                value: searchKeyword.value,
-                caseSensitive: false
-              }
-            }
-          },
-          {
-            filter: {
-              fieldName: 'sessionCampaignName',
-              stringFilter: {
-                matchType: 'CONTAINS',
-                value: searchKeyword.value,
-                caseSensitive: false
-              }
-            }
-          }
-        ]
+          ]
+        }
       }
-    } : undefined
+    }
 
-    // 分页数据请求
+    // 获取总计数据的请求（包含相同的搜索条件）
+    const totalsRequest = {
+      dateRanges: [{
+        startDate: props.startDate,
+        endDate: props.endDate
+      }],
+      metrics: [
+        { name: 'sessions' },
+        { name: 'activeUsers' },
+        { name: 'bounceRate' },
+        { name: 'averageSessionDuration' },
+        { name: 'addToCarts' },
+        { name: 'checkouts' }
+      ]
+    }
+    
+    // 如果有搜索关键词，将相同的过滤条件应用到总计请求
+    if (searchKeyword.value) {
+      totalsRequest.dimensions = [
+        { name: 'firstUserSource' },
+        { name: 'firstUserMedium' },
+        { name: 'firstUserCampaignName' }
+      ]
+      
+      totalsRequest.dimensionFilter = {
+        orGroup: {
+          expressions: [
+            {
+              filter: {
+                fieldName: 'firstUserSource',
+                stringFilter: {
+                  matchType: 'CONTAINS',
+                  value: searchKeyword.value,
+                  caseSensitive: false
+                }
+              }
+            },
+            {
+              filter: {
+                fieldName: 'firstUserMedium',
+                stringFilter: {
+                  matchType: 'CONTAINS',
+                  value: searchKeyword.value,
+                  caseSensitive: false
+                }
+              }
+            },
+            {
+              filter: {
+                fieldName: 'firstUserCampaignName',
+                stringFilter: {
+                  matchType: 'CONTAINS',
+                  value: searchKeyword.value,
+                  caseSensitive: false
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+
+    // 添加分页和排序的请求
     const pageRequest = {
       ...baseRequest,
-      dimensions: [
-        { name: 'sessionSource' },
-        { name: 'sessionMedium' },
-        { name: 'sessionCampaignName' }
-      ],
-      dimensionFilter,
       limit: pageSize.value,
       offset: (currentPage.value - 1) * pageSize.value,
       orderBys: [{
@@ -421,71 +514,90 @@ async function fetchData() {
       }]
     }
 
-    // 总计数据请求（使用相同的筛选条件但不分页）
-    const totalRequest = {
-      ...baseRequest,
-      dimensionFilter,
-      dimensions: [
-        { name: 'sessionSource' },
-        { name: 'sessionMedium' },
-        { name: 'sessionCampaignName' }
-      ]
+    // 获取分页数据和总计数据
+    const [pageResponse, totalsResponse] = await Promise.all([
+      ga4Client.runReport(pageRequest),
+      ga4Client.runReport(totalsRequest)
+    ])
+
+    // 设置总计数据
+    if (totalsResponse?.rows?.length && !totalsResponse.dimensions) {
+      // 无维度的请求，使用第一行数据
+      totals.value = {
+        visits: parseInt(totalsResponse.rows[0].metricValues[0].value) || 0,
+        users: parseInt(totalsResponse.rows[0].metricValues[1].value) || 0,
+        bounceRate: parseFloat(totalsResponse.rows[0].metricValues[2].value) || 0,
+        avgDuration: parseFloat(totalsResponse.rows[0].metricValues[3].value) || 0,
+        addToCarts: parseInt(totalsResponse.rows[0].metricValues[4].value) || 0,  // 加购数
+        checkouts: parseInt(totalsResponse.rows[0].metricValues[5].value) || 0    // 结账数
+      }
+    } else if (totalsResponse?.rows?.length) {
+      // 有维度的请求，需要汇总所有行
+      totals.value = {
+        visits: totalsResponse.rows.reduce((sum, row) => sum + (parseInt(row.metricValues[0].value) || 0), 0),
+        users: totalsResponse.rows.reduce((sum, row) => sum + (parseInt(row.metricValues[1].value) || 0), 0),
+        // 加权平均跳出率
+        bounceRate: totalsResponse.rows.reduce((sum, row) => {
+          const visits = parseInt(row.metricValues[0].value) || 0
+          const rate = parseFloat(row.metricValues[2].value) || 0
+          return sum + (rate * visits)
+        }, 0) / totalsResponse.rows.reduce((sum, row) => sum + (parseInt(row.metricValues[0].value) || 0), 0) || 0,
+        // 加权平均会话时长
+        avgDuration: totalsResponse.rows.reduce((sum, row) => {
+          const visits = parseInt(row.metricValues[0].value) || 0
+          const duration = parseFloat(row.metricValues[3].value) || 0
+          return sum + (duration * visits)
+        }, 0) / totalsResponse.rows.reduce((sum, row) => sum + (parseInt(row.metricValues[0].value) || 0), 0) || 0,
+        addToCarts: totalsResponse.rows.reduce((sum, row) => sum + (parseInt(row.metricValues[4].value) || 0), 0),
+        checkouts: totalsResponse.rows.reduce((sum, row) => sum + (parseInt(row.metricValues[5].value) || 0), 0)
+      }
+    } else {
+      // 没有数据，设置默认值
+      totals.value = {
+        visits: 0,
+        users: 0,
+        bounceRate: 0,
+        avgDuration: 0,
+        addToCarts: 0,
+        checkouts: 0
+      }
     }
 
-    // 并行请求数据
-    const [pageResponse, totalResponse] = await Promise.all([
-      ga4Client.runReport(pageRequest),
-      ga4Client.runReport(totalRequest)
-    ])
+    console.log('Totals Response:', totalsResponse)
+    console.log('Totals Data:', totals.value)
 
     // 处理分页数据
     if (pageResponse?.rows?.length) {
-      sourceData.value = pageResponse.rows.map(row => {
-        const source = row.dimensionValues[0].value
-        const medium = row.dimensionValues[1].value
-        const campaign = row.dimensionValues[2].value
-        
-        return {
-          type: getSourceType(source),
-          source: source,
-          medium: medium,
-          sourceMedium: `${source}/${medium}`,
-          campaign: campaign === '(not set)' ? '-' : campaign,
-          visits: parseInt(row.metricValues[0].value),
-          users: parseInt(row.metricValues[1].value),
-          bounceRate: parseFloat(row.metricValues[2].value),
-          avgDuration: parseFloat(row.metricValues[3].value)
-        }
-      })
+      sourceData.value = pageResponse.rows.map(row => ({
+        type: getSourceType(row.dimensionValues[0].value),
+        source: row.dimensionValues[0].value,
+        medium: row.dimensionValues[1].value,
+        campaign: row.dimensionValues[2].value === '(not set)' ? '-' : row.dimensionValues[2].value,
+        visits: parseInt(row.metricValues[0].value),
+        users: parseInt(row.metricValues[1].value),
+        bounceRate: parseFloat(row.metricValues[2].value),
+        avgDuration: parseFloat(row.metricValues[3].value),
+        addToCarts: parseInt(row.metricValues[4].value),  // 加购数
+        checkouts: parseInt(row.metricValues[5].value)    // 结账数
+      }))
     } else {
       sourceData.value = []
     }
 
-    // 计算总计数据
-    if (totalResponse?.rows?.length) {
-      const totalVisits = totalResponse.rows.reduce((sum, row) => sum + parseInt(row.metricValues[0].value), 0)
-      const totalUsers = totalResponse.rows.reduce((sum, row) => sum + parseInt(row.metricValues[1].value), 0)
-      
-      // 计算加权平均的跳出率和访问时长
-      const weightedBounceRate = totalResponse.rows.reduce((sum, row) => {
-        const users = parseInt(row.metricValues[1].value)
-        return sum + parseFloat(row.metricValues[2].value) * users
-      }, 0) / totalUsers
-
-      const weightedDuration = totalResponse.rows.reduce((sum, row) => {
-        const users = parseInt(row.metricValues[1].value)
-        return sum + parseFloat(row.metricValues[3].value) * users
-      }, 0) / totalUsers
-
-      totals.value = {
-        visits: totalVisits,
-        users: totalUsers,
-        bounceRate: weightedBounceRate,
-        avgDuration: weightedDuration
+    // 设置总行数 - 修改这里
+    if (pageResponse?.rowCount !== undefined) {
+      total.value = pageResponse.rowCount
+      console.log('Total rows:', total.value)
+    } else {
+      console.warn('No rowCount in response, using fallback')
+      // 如果没有 rowCount，尝试从 totalsResponse 获取
+      if (totalsResponse?.rowCount !== undefined) {
+        total.value = totalsResponse.rowCount
+      } else {
+        // 最后的备选方案
+        total.value = sourceData.value.length
       }
     }
-
-    total.value = pageResponse.rowCount || 0
 
   } catch (error) {
     console.error('Error fetching source data:', error)
@@ -550,15 +662,9 @@ const getSourceIcon = (type) => {
   }
 }
 
-// 格式化数字
+// 格式化数字 - 修改为显示完整数字
 const formatNumber = (value) => {
   if (!value && value !== 0) return '-'
-  if (value >= 10000) {
-    return `${(value / 10000).toFixed(1)}w`
-  }
-  if (value >= 1000) {
-    return `${(value / 1000).toFixed(1)}k`
-  }
   return value.toLocaleString()
 }
 
@@ -624,7 +730,7 @@ watch(searchKeyword, () => {
   handleSearch()
 })
 
-// 修改总计计算方法使用 API 返回的总计数据
+// 修改汇总方法，确保正确显示数据
 const getSummaries = (param) => {
   const { columns } = param
   const sums = []
@@ -635,19 +741,35 @@ const getSummaries = (param) => {
       return
     }
     
+    // 确保 totals.value 有值
+    if (!totals.value) {
+      sums[index] = ''
+      return
+    }
+    
     switch (column.property) {
       case 'visits':
-        sums[index] = formatNumber(totals.value.visits)
+        sums[index] = formatNumber(totals.value.visits || 0)
         break
       case 'users':
-        sums[index] = formatNumber(totals.value.users)
+        sums[index] = formatNumber(totals.value.users || 0)
         break
       case 'bounceRate':
-        sums[index] = formatPercent(totals.value.bounceRate)
+        sums[index] = formatPercent(totals.value.bounceRate || 0)
         break
       case 'avgDuration':
-        sums[index] = formatDuration(totals.value.avgDuration)
+        sums[index] = formatDuration(totals.value.avgDuration || 0)
         break
+      case 'addToCarts':
+        sums[index] = formatNumber(totals.value.addToCarts || 0)
+        break
+      case 'checkouts':
+        sums[index] = formatNumber(totals.value.checkouts || 0)
+        break
+      case 'source':
+      case 'medium':
+      case 'campaign':
+      case 'type':
       default:
         sums[index] = ''
     }
@@ -705,6 +827,7 @@ async function fetchPageData() {
   pageLoading.value = true
   
   try {
+    // 页面分析请求
     const baseRequest = {
       dateRanges: [{
         startDate: props.startDate,
@@ -1056,18 +1179,18 @@ onMounted(() => {
 }
 
 :deep(.el-table__footer-wrapper) {
-  background-color: var(--card-bg);
+  background-color: var(--el-bg-color);
 }
 
 :deep(.el-table__footer) {
-  background-color: var(--card-bg);
-  color: var(--text-color);
+  background-color: var(--el-bg-color);
+  color: var(--el-text-color-primary);
   font-weight: 600;
 }
 
 :deep(.el-table__footer td) {
-  background-color: var(--card-bg);
-  border-top: 1px solid var(--border-color);
+  background-color: var(--el-bg-color);
+  border-top: 1px solid var(--el-border-color-light);
 }
 
 :deep(.el-table__footer .cell) {
