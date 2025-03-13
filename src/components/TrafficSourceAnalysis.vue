@@ -441,7 +441,7 @@ async function fetchData() {
       }
     }
 
-    // 获取总计数据的请求（包含相同的搜索条件）
+    // 修改总计数据请求，确保获取所有匹配的数据
     const totalsRequest = {
       dateRanges: [{
         startDate: props.startDate,
@@ -521,45 +521,38 @@ async function fetchData() {
     ])
 
     // 设置总计数据
-    if (totalsResponse?.rows?.length && !totalsResponse.dimensions) {
-      // 无维度的请求，使用第一行数据
+    if (searchKeyword.value && totalsResponse?.rows?.length) {
+      // 有筛选条件，需要汇总所有行
+      const totalVisits = totalsResponse.rows.reduce((sum, row) => sum + (parseInt(row.metricValues[0].value) || 0), 0);
+      const totalUsers = totalsResponse.rows.reduce((sum, row) => sum + (parseInt(row.metricValues[1].value) || 0), 0);
+      
+      totals.value = {
+        visits: totalVisits,
+        users: totalUsers,
+        // 加权平均跳出率
+        bounceRate: totalsResponse.rows.reduce((sum, row) => {
+          const visits = parseInt(row.metricValues[0].value) || 0;
+          const rate = parseFloat(row.metricValues[2].value) || 0;
+          return sum + (rate * visits);
+        }, 0) / (totalVisits || 1),
+        // 加权平均会话时长
+        avgDuration: totalsResponse.rows.reduce((sum, row) => {
+          const visits = parseInt(row.metricValues[0].value) || 0;
+          const duration = parseFloat(row.metricValues[3].value) || 0;
+          return sum + (duration * visits);
+        }, 0) / (totalVisits || 1),
+        addToCarts: totalsResponse.rows.reduce((sum, row) => sum + (parseInt(row.metricValues[4].value) || 0), 0),
+        checkouts: totalsResponse.rows.reduce((sum, row) => sum + (parseInt(row.metricValues[5].value) || 0), 0)
+      }
+    } else if (totalsResponse?.rows?.length) {
+      // 无筛选条件，使用第一行数据
       totals.value = {
         visits: parseInt(totalsResponse.rows[0].metricValues[0].value) || 0,
         users: parseInt(totalsResponse.rows[0].metricValues[1].value) || 0,
         bounceRate: parseFloat(totalsResponse.rows[0].metricValues[2].value) || 0,
         avgDuration: parseFloat(totalsResponse.rows[0].metricValues[3].value) || 0,
-        addToCarts: parseInt(totalsResponse.rows[0].metricValues[4].value) || 0,  // 加购数
-        checkouts: parseInt(totalsResponse.rows[0].metricValues[5].value) || 0    // 结账数
-      }
-    } else if (totalsResponse?.rows?.length) {
-      // 有维度的请求，需要汇总所有行
-      totals.value = {
-        visits: totalsResponse.rows.reduce((sum, row) => sum + (parseInt(row.metricValues[0].value) || 0), 0),
-        users: totalsResponse.rows.reduce((sum, row) => sum + (parseInt(row.metricValues[1].value) || 0), 0),
-        // 加权平均跳出率
-        bounceRate: totalsResponse.rows.reduce((sum, row) => {
-          const visits = parseInt(row.metricValues[0].value) || 0
-          const rate = parseFloat(row.metricValues[2].value) || 0
-          return sum + (rate * visits)
-        }, 0) / totalsResponse.rows.reduce((sum, row) => sum + (parseInt(row.metricValues[0].value) || 0), 0) || 0,
-        // 加权平均会话时长
-        avgDuration: totalsResponse.rows.reduce((sum, row) => {
-          const visits = parseInt(row.metricValues[0].value) || 0
-          const duration = parseFloat(row.metricValues[3].value) || 0
-          return sum + (duration * visits)
-        }, 0) / totalsResponse.rows.reduce((sum, row) => sum + (parseInt(row.metricValues[0].value) || 0), 0) || 0,
-        addToCarts: totalsResponse.rows.reduce((sum, row) => sum + (parseInt(row.metricValues[4].value) || 0), 0),
-        checkouts: totalsResponse.rows.reduce((sum, row) => sum + (parseInt(row.metricValues[5].value) || 0), 0)
-      }
-    } else {
-      // 没有数据，设置默认值
-      totals.value = {
-        visits: 0,
-        users: 0,
-        bounceRate: 0,
-        avgDuration: 0,
-        addToCarts: 0,
-        checkouts: 0
+        addToCarts: parseInt(totalsResponse.rows[0].metricValues[4].value) || 0,
+        checkouts: parseInt(totalsResponse.rows[0].metricValues[5].value) || 0
       }
     }
 
