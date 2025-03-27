@@ -1,9 +1,9 @@
 <template>
-  <div class="chart-container" ref="chartRef"></div>
+  <div class="chart-container" ref="chartRef" v-chart-resize="chart"></div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch, onUnmounted } from 'vue'
+import { ref, onMounted, watch, onUnmounted, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import { ga4Client } from '../api/ga4'
 import { ElMessage } from 'element-plus'
@@ -23,6 +23,7 @@ const chartRef = ref(null)
 const loading = ref(false)
 const chartData = ref([])
 let chart = null
+let resizeTimer = null
 
 // 获取趋势数据
 const fetchData = async () => {
@@ -65,7 +66,36 @@ const fetchData = async () => {
 const initChart = () => {
   if (!chartRef.value) return
   chart = echarts.init(chartRef.value)
+  
+  // 监听全局 resize 事件，适用于折叠/展开区块
+  window.addEventListener('resize', handleResize)
 }
+
+// 防抖处理函数确保不会过于频繁地调用 resize
+const handleResize = () => {
+  if (resizeTimer) clearTimeout(resizeTimer)
+  resizeTimer = setTimeout(() => {
+    if (chart) {
+      console.log('TrendChart resize 被触发')
+      chart.resize()
+    }
+  }, 300)
+}
+
+// 添加一个公共方法用于手动触发图表重绘
+const forceResize = () => {
+  nextTick(() => {
+    if (chart) {
+      console.log('TrendChart forceResize 被触发')
+      chart.resize()
+    }
+  })
+}
+
+// 监听来自父组件的折叠/展开事件
+window.addEventListener('collapseChange', () => {
+  forceResize()
+})
 
 const updateChart = () => {
   if (!chart || !chartData.value.length) {
@@ -236,6 +266,10 @@ const updateChart = () => {
   }
 
   chart.setOption(option)
+  // 确保图表初始化后立即调整大小
+  setTimeout(() => {
+    if (chart) chart.resize()
+  }, 100)
 }
 
 // 监听日期变化
@@ -256,20 +290,32 @@ watch(
   { immediate: true }
 )
 
+// 在视图更新后，确保图表大小正确
+watch(() => chartData.value, () => {
+  nextTick(() => {
+    if (chart) chart.resize()
+  })
+})
+
 onMounted(() => {
   initChart()
-  window.addEventListener('resize', () => {
-    chart?.resize()
-  })
+  // 确保组件挂载后，监听全局折叠事件
+  document.addEventListener('collapseChange', forceResize)
 })
 
 onUnmounted(() => {
   if (chart) {
     chart.dispose()
+    chart = null
   }
-  window.removeEventListener('resize', () => {
-    chart?.resize()
-  })
+  // 移除全局事件监听
+  window.removeEventListener('resize', handleResize)
+  document.removeEventListener('collapseChange', forceResize)
+  
+  if (resizeTimer) {
+    clearTimeout(resizeTimer)
+    resizeTimer = null
+  }
 })
 </script>
 

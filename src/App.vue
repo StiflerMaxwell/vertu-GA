@@ -73,66 +73,174 @@
         <el-loading :full-screen="false" :element-loading-text="'加载中...'" v-if="loading" />
         
         <template v-else>
-          <!-- 添加实时流量监控组件 -->
-          <section class="section-realtime">
-            <h2 class="section-title">实时流量监控</h2>
-            <RealtimeTraffic />
-          </section>
+          <!-- 添加展开/折叠所有区块的按钮 -->
+          <div class="section-controls">
+            <el-button-group>
+              <el-tooltip content="展开所有区块" placement="top">
+                <el-button 
+                  :type="allSectionsExpanded ? 'default' : 'primary'" 
+                  :disabled="allSectionsExpanded" 
+                  @click="expandAllSections"
+                >
+                  <el-icon><Expand /></el-icon> 展开全部
+                </el-button>
+              </el-tooltip>
+              <el-tooltip content="折叠所有区块" placement="top">
+                <el-button 
+                  :type="activeSections.length === 0 ? 'default' : 'info'" 
+                  :disabled="activeSections.length === 0" 
+                  @click="collapseAllSections"
+                >
+                  <el-icon><Fold /></el-icon> 折叠全部
+                </el-button>
+              </el-tooltip>
+            </el-button-group>
+            <span class="section-hint">点击标题栏可折叠/展开内容</span>
+          </div>
+          
+          <!-- 使用 El-Collapse 组件包装所有 section -->
+          <el-collapse v-model="activeSections" :class="{'section-collapse': true}" @change="handleCollapseChange">
+            <!-- 实时流量监控组件 -->
+            <el-collapse-item :name="'realtime'" class="section-item realtime">
+              <template #title>
+                <div class="section-header">
+                  <h2 class="section-title">实时流量监控</h2>
+                  <div class="section-actions">
+                    <el-tag size="small" type="success">实时</el-tag>
+                  </div>
+                </div>
+              </template>
+              <div class="section-content">
+                <RealtimeTraffic />
+              </div>
+            </el-collapse-item>
 
-          <!-- 核心指标卡片 -->
-          <section class="section-core-metrics">
-            <h2 class="section-title">核心指标</h2>
-            <CoreMetrics 
-              :start-date="startDate" 
-              :end-date="endDate" 
-              :key="`core-metrics-${dateKey}`"
-            />
-          </section>
+            <!-- 核心指标卡片 -->
+            <el-collapse-item :name="'core-metrics'" class="section-item core-metrics">
+              <template #title>
+                <div class="section-header">
+                  <h2 class="section-title">核心指标</h2>
+                  <div class="section-actions">
+                    <el-tag size="small" type="primary">指标</el-tag>
+                  </div>
+                </div>
+              </template>
+              <div class="section-content">
+                <CoreMetrics 
+                  :start-date="startDate" 
+                  :end-date="endDate" 
+                  :key="`core-metrics-${dateKey}`"
+                />
+              </div>
+            </el-collapse-item>
 
-          <!-- 趋势分析区域 -->
-          <section class="section-trends">
-            <h2 class="section-title">趋势分析</h2>
-            <div class="chart-container">
-              <TrendChart 
-                :start-date="startDate" 
-                :end-date="endDate" 
-                :key="`trend-chart-${dateKey}`"
-              />
-            </div>
-          </section>
+            <!-- 趋势分析区域 -->
+            <el-collapse-item :name="'trends'" class="section-item trends">
+              <template #title>
+                <div class="section-header">
+                  <h2 class="section-title">趋势分析</h2>
+                  <div class="section-actions">
+                    <el-tag size="small" type="info">趋势</el-tag>
+                  </div>
+                </div>
+              </template>
+              <div class="section-content">
+                <div class="chart-container">
+                  <TrendChart 
+                    :start-date="startDate" 
+                    :end-date="endDate" 
+                    :key="`trend-chart-${dateKey}`"
+                  />
+                </div>
+              </div>
+            </el-collapse-item>
 
-          <!-- 访问来源分析 -->
-          <section class="section-source">
-            <h2 class="section-title">访问来源分析</h2>
-            <TrafficSourceAnalysis 
-              :start-date="startDate" 
-              :end-date="endDate" 
-              :key="`traffic-source-${dateKey}`"
-            />
-          </section>
+            <!-- 访问来源分析 -->
+            <el-collapse-item :name="'source'" class="section-item source">
+              <template #title>
+                <div class="section-header">
+                  <h2 class="section-title">访问来源分析</h2>
+                  <div class="section-actions">
+                    <el-tag size="small" type="warning">来源</el-tag>
+                  </div>
+                </div>
+              </template>
+              <div class="section-content">
+                <TrafficSourceAnalysis 
+                  :start-date="startDate" 
+                  :end-date="endDate" 
+                  :key="`traffic-source-${dateKey}`"
+                />
+              </div>
+            </el-collapse-item>
+            
+            <!-- 电子商务分析 -->
+            <el-collapse-item :name="'ecommerce'" class="section-item ecommerce">
+              <template #title>
+                <div class="section-header">
+                  <h2 class="section-title">电子商务分析</h2>
+                  <div class="section-actions">
+                    <el-tag size="small" type="success">电商</el-tag>
+                  </div>
+                </div>
+              </template>
+              <div class="section-content">
+                <EcommerceAnalysis 
+                  :start-date="startDate" 
+                  :end-date="endDate" 
+                  :key="`ecommerce-${dateKey}`"
+                />
+              </div>
+            </el-collapse-item>
           
            <!-- 免费流量分析 -->
-           <section class="section-free-traffic">
-            <h2 class="section-title">免费流量分析</h2>
-            <FreeTrafficAnalysis 
-              :start-date="startDate" 
-              :end-date="endDate"
-            />
-          </section>
+            <el-collapse-item :name="'free-traffic'" class="section-item free-traffic">
+              <template #title>
+                <div class="section-header">
+                  <h2 class="section-title">免费流量分析</h2>
+                  <div class="section-actions">
+                    <el-tag size="small" type="success">免费</el-tag>
+                  </div>
+                </div>
+              </template>
+              <div class="section-content">
+                <FreeTrafficAnalysis 
+                  :start-date="startDate" 
+                  :end-date="endDate"
+                />
+              </div>
+            </el-collapse-item>
 
-          <!-- Google Alerts -->
-          <section class="section-alerts">
-              <h2 class="section-title">Google Search Feed</h2>
-            <GoogleAlerts />
-          </section>
+            <!-- Google Alerts -->
+            <el-collapse-item :name="'alerts'" class="section-item alerts">
+              <template #title>
+                <div class="section-header">
+                  <h2 class="section-title">Google Search Feed</h2>
+                  <div class="section-actions">
+                    <el-tag size="small" type="danger">Feed</el-tag>
+                  </div>
+                </div>
+              </template>
+              <div class="section-content">
+                <GoogleAlerts />
+              </div>
+            </el-collapse-item>
 
-          <!-- 性能指标分析 -->
-          <section class="section-performance">
-            <h2 class="section-title">性能指标分析</h2>
-            <PerformanceMetrics />
-          </section>
-
-        
+            <!-- 性能指标分析 -->
+            <el-collapse-item :name="'performance'" class="section-item performance">
+              <template #title>
+                <div class="section-header">
+                  <h2 class="section-title">性能指标分析</h2>
+                  <div class="section-actions">
+                    <el-tag size="small" type="info">性能</el-tag>
+                  </div>
+                </div>
+              </template>
+              <div class="section-content">
+                <PerformanceMetrics />
+              </div>
+            </el-collapse-item>
+          </el-collapse>
         </template>
       </main>
     </div>
@@ -140,7 +248,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, watch, markRaw } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch, markRaw, nextTick } from 'vue'
 import { ga4Client, fetchGeoDistribution, fetchDeviceDistribution, fetchSourceDistribution, fetchTrendData } from './api/ga4'
 import { AnalyticsInsight } from './utils/analytics'
 import DataCard from './components/DataCard.vue'
@@ -153,6 +261,7 @@ import TrafficSourceAnalysis from './components/TrafficSourceAnalysis.vue'
 import PerformanceMetrics from './components/PerformanceMetrics.vue'
 import GoogleAlerts from './components/GoogleSearchFeed.vue'
 import RealtimeTraffic from './components/RealtimeTraffic.vue'
+import EcommerceAnalysis from './components/EcommerceAnalysis.vue'
 import {
   FullScreen as IconFullScreen,
   Close as IconClose,
@@ -171,7 +280,11 @@ import {
   ArrowDown,
   Moon,
   Sunny,
-  Share
+  Share,
+  Refresh,
+  ArrowRight,
+  Fold,
+  Expand
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { getDefaultDateRange } from './utils/dateUtils'
@@ -378,9 +491,97 @@ const initDefaultDates = () => {
   refreshData()
 }
 
-// 在组件挂载时初始化日期
+// 可折叠区块的名称列表
+const sectionNames = [
+  'realtime',
+  'core-metrics',
+  'trends',
+  'source',
+  'ecommerce',
+  'free-traffic',
+  'alerts',
+  'performance'
+]
+
+// 添加 activeSections 存储当前展开的区块
+const activeSections = ref([])
+
+// 判断是否所有区块都已展开
+const allSectionsExpanded = computed(() => {
+  return activeSections.value.length === sectionNames.length
+})
+
+// 展开/折叠所有区块的方法
+const expandAllSections = () => {
+  activeSections.value = [...sectionNames]
+  saveSectionState()
+}
+
+const collapseAllSections = () => {
+  activeSections.value = []
+  saveSectionState()
+}
+
+// 保存折叠状态到本地存储
+const saveSectionState = () => {
+  localStorage.setItem('dashboard-sections', JSON.stringify(activeSections.value))
+}
+
+// 切换单个区块的展开/折叠状态
+const toggleSection = (sectionName) => {
+  const index = activeSections.value.indexOf(sectionName)
+  if (index === -1) {
+    activeSections.value.push(sectionName)
+  } else {
+    activeSections.value.splice(index, 1)
+  }
+  saveSectionState()
+}
+
+// 处理折叠状态变化的函数
+const handleCollapseChange = (expandedSections) => {
+  // 保存状态
+  saveSectionState()
+  
+  // 触发自定义事件通知图表组件
+  document.dispatchEvent(new CustomEvent('collapseChange', {
+    detail: { sections: expandedSections }
+  }))
+  
+  // 触发resize事件，让图表重新调整大小
+  setTimeout(() => {
+    window.dispatchEvent(new Event('resize'))
+    console.log('触发图表重绘，当前展开的区块:', expandedSections)
+  }, 400) // 等待过渡动画完成，动画时长为 0.3s
+}
+
+// 在组件挂载时，从本地存储恢复折叠状态
+const loadSectionState = () => {
+  try {
+    const savedState = localStorage.getItem('dashboard-sections')
+    if (savedState) {
+      activeSections.value = JSON.parse(savedState)
+    } else {
+      // 默认展开的区块
+      activeSections.value = ['realtime', 'core-metrics']
+    }
+  } catch (e) {
+    console.error('Error loading section state:', e)
+    activeSections.value = ['realtime', 'core-metrics']
+  }
+}
+
+// 在组件挂载时初始化日期和加载区块状态
 onMounted(() => {
+  console.log('组件挂载')
+  loadSectionState()
+  
   initDefaultDates()
+  
+  document.addEventListener('fullscreenchange', handleFullscreenChange)
+  document.addEventListener('webkitfullscreenchange', handleFullscreenChange)
+  document.addEventListener('msfullscreenchange', handleFullscreenChange)
+  document.addEventListener('keydown', handleKeyPress)
 })
 
 function updateDashboard(data) {
@@ -747,6 +948,27 @@ const trafficData = ref({
 })
 
 const locale = ref(zhCn)
+
+// 监听 activeSections 变化，保存到本地存储
+watch(activeSections, (newSections, oldSections) => {
+  // 如果数组长度发生显著变化，可能是批量折叠/展开
+  if (Math.abs(newSections.length - oldSections.length) > 1) {
+    console.log('批量折叠/展开操作')
+    
+    // 保存状态
+    saveSectionState()
+    
+    // 触发自定义事件通知图表组件
+    document.dispatchEvent(new CustomEvent('collapseChange', {
+      detail: { sections: newSections, isBatch: true }
+    }))
+    
+    // 延时触发 resize 事件
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'))
+    }, 500)
+  }
+}, { deep: true })
 </script>
 
 <style lang="scss" scoped>
@@ -812,7 +1034,7 @@ const locale = ref(zhCn)
     font-size: 18px;
     font-weight: 600;
     color: var(--el-text-color-primary);
-    margin-bottom: 20px;
+    margin-bottom: 0;
     padding-left: 16px;
     position: relative;
 
@@ -827,6 +1049,155 @@ const locale = ref(zhCn)
       background-color: var(--el-color-success);
       border-radius: 2px;
     }
+  }
+}
+
+/* 折叠区块样式 */
+.section-collapse {
+  --el-collapse-border-color: transparent;
+  --el-collapse-header-height: auto; 
+  --el-collapse-content-bg-color: transparent;
+  border: none;
+  background: transparent;
+}
+
+.section-item {
+  margin-bottom: 24px;
+  border-radius: 20px;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--el-box-shadow-light);
+  background: rgba(255, 255, 255, 0.02);
+  position: relative;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--el-box-shadow);
+  }
+  
+  &:before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 4px;
+    background: var(--el-color-primary);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  
+  &:hover:before {
+    opacity: 0.5;
+  }
+}
+
+/* 根据标签类型设置不同颜色 */
+.section-item.realtime:before { background: var(--el-color-success); }
+.section-item.core-metrics:before { background: var(--el-color-primary); }
+.section-item.trends:before { background: var(--el-color-info); }
+.section-item.source:before { background: var(--el-color-warning); }
+.section-item.free-traffic:before { background: var(--el-color-success); }
+.section-item.alerts:before { background: var(--el-color-danger); }
+.section-item.performance:before { background: var(--el-color-info); }
+
+:deep(.el-collapse-item__header) {
+  padding: 20px 24px;
+  border: none;
+  background: var(--el-bg-color-overlay);
+  height: auto;
+  line-height: normal;
+  color: var(--el-text-color-primary);
+  font-weight: 600;
+  position: relative;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  
+  &:hover {
+    background: var(--el-bg-color-overlay);
+    opacity: 0.95;
+  }
+  
+  &.is-active {
+    border-bottom: 1px solid var(--el-border-color-light);
+    
+    & + .el-collapse-item__wrap {
+      animation: fadeContentIn 0.5s ease;
+    }
+  }
+}
+
+@keyframes fadeContentIn {
+  from {
+    opacity: 0.8;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+:deep(.el-collapse-item__arrow) {
+  font-size: 20px;
+  color: var(--el-text-color-secondary);
+  margin-left: 16px;
+  transition: transform 0.3s;
+}
+
+:deep(.el-collapse-item__wrap) {
+  background: transparent;
+  border: none;
+}
+
+:deep(.el-collapse-item__content) {
+  padding: 0;
+  color: var(--el-text-color-primary);
+}
+
+.section-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.section-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.section-content {
+  padding: 24px;
+  transition: all 0.3s ease;
+}
+
+/* 确保暗黑模式下的兼容性 */
+.dark {
+  .section-item {
+    background: rgba(255, 255, 255, 0.03);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+  }
+  
+  :deep(.el-collapse-item__header) {
+    background: rgba(30, 30, 30, 0.7);
+    
+    &:hover {
+      background: rgba(40, 40, 40, 0.8);
+    }
+  }
+  
+  :deep(.el-collapse-item__arrow) {
+    color: rgba(255, 255, 255, 0.6);
   }
 }
 
@@ -865,6 +1236,16 @@ const locale = ref(zhCn)
 
   .dashboard-content {
     padding: 16px;
+  }
+  
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .section-actions {
+    margin-left: 16px;
   }
 }
 
@@ -1344,5 +1725,59 @@ section {
 .section-alerts {
   margin-bottom: 24px;
   padding: 0 24px;
+}
+
+/* 添加展开/折叠所有区块的按钮样式 */
+.section-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.section-hint {
+  color: var(--el-text-color-secondary);
+  font-size: 14px;
+}
+
+.el-button-group {
+  box-shadow: var(--el-box-shadow-light);
+  border-radius: 4px;
+  overflow: hidden;
+  
+  .el-button {
+    border-radius: 0;
+    
+    &:first-child {
+      border-top-left-radius: 4px;
+      border-bottom-left-radius: 4px;
+    }
+    
+    &:last-child {
+      border-top-right-radius: 4px;
+      border-bottom-right-radius: 4px;
+    }
+  }
+}
+
+/* 响应式设计调整 */
+@media (max-width: 768px) {
+  .section-controls {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .section-hint {
+    margin-left: 4px;
+  }
+  
+  .el-button-group {
+    width: 100%;
+    
+    .el-button {
+      flex: 1;
+    }
+  }
 }
 </style> 

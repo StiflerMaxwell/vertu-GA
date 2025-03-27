@@ -25,13 +25,13 @@
         </div>
       </div>
 
-      <div class="trend-chart" ref="chartRef"></div>
+      <div class="trend-chart" ref="chartRef" v-chart-resize="chart"></div>
     </div>
   </el-card>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch, computed, watchEffect } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed, watchEffect, nextTick } from 'vue'
 import { RefreshRight, Loading } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import { ElMessage } from 'element-plus'
@@ -80,6 +80,7 @@ const handleRefresh = async () => {
 
 const chartRef = ref(null)
 let chart = null
+let resizeTimer = null
 
 // 修改刷新间隔为 10 分钟
 const REFRESH_INTERVAL = 600000 // 从 300000 改为 600000
@@ -94,12 +95,33 @@ watchEffect(() => {
   })
 })
 
+// 处理图表调整大小
+const handleResize = () => {
+  if (resizeTimer) clearTimeout(resizeTimer)
+  resizeTimer = setTimeout(() => {
+    if (chart) {
+      console.log('ActiveUsersCard chart resize 被触发')
+      chart.resize()
+    }
+  }, 300)
+}
+
+// 处理折叠/展开事件
+const handleCollapseChange = () => {
+  console.log('ActiveUsersCard 收到 collapseChange 事件')
+  nextTick(() => {
+    if (chart) chart.resize()
+  })
+}
+
 const updateChart = () => {
   if (!chartRef.value) return
   
   try {
     if (!chart) {
       chart = echarts.init(chartRef.value)
+      // 添加窗口 resize 事件监听
+      window.addEventListener('resize', handleResize)
     }
 
     const option = {
@@ -149,6 +171,11 @@ const updateChart = () => {
     }
 
     chart.setOption(option)
+    
+    // 确保图表初始化后立即调整大小
+    setTimeout(() => {
+      if (chart) chart.resize()
+    }, 100)
   } catch (error) {
     console.error('Error updating chart:', error)
   }
@@ -161,31 +188,38 @@ watch(() => props.timeSeriesData, (newVal) => {
   }
 }, { deep: true })
 
+let timer = null
+
 onMounted(() => {
   updateChart()
-  // 添加窗口大小变化监听
-  window.addEventListener('resize', () => {
-    chart?.resize()
-  })
-
+  
   // 设置定时刷新
-  const timer = setInterval(() => {
+  timer = setInterval(() => {
     handleRefresh() // 使用已定义的 handleRefresh 方法而不是 fetchData
   }, REFRESH_INTERVAL)
-
-  onUnmounted(() => {
-    clearInterval(timer)
-  })
+  
+  // 监听折叠/展开事件
+  document.addEventListener('collapseChange', handleCollapseChange)
 })
 
 onUnmounted(() => {
+  if (timer) {
+    clearInterval(timer)
+  }
+  
   if (chart) {
     chart.dispose()
     chart = null
   }
-  window.removeEventListener('resize', () => {
-    chart?.resize()
-  })
+  
+  // 移除事件监听器
+  window.removeEventListener('resize', handleResize)
+  document.removeEventListener('collapseChange', handleCollapseChange)
+  
+  if (resizeTimer) {
+    clearTimeout(resizeTimer)
+    resizeTimer = null
+  }
 })
 </script>
 
