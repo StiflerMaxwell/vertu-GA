@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { getFirestore } from 'firebase/firestore'
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore'
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -13,5 +13,13 @@ const firebaseConfig = {
 // 初始化 Firebase
 const app = initializeApp(firebaseConfig)
 const db = getFirestore(app)
+
+// 添加日志记录配置
+if (process.env.NODE_ENV === 'development') {
+  console.log('Firebase 初始化配置:', {
+    projectId: firebaseConfig.projectId,
+    authDomain: firebaseConfig.authDomain
+  })
+}
 
 export { db } 

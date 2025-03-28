@@ -1,4 +1,4 @@
-import { createApp } from 'vue'
+import { createApp, ref } from 'vue'
 import './style.css'
 import './styles/reset.css'
 import './styles/theme.css'
@@ -7,8 +7,14 @@ import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import 'element-plus/dist/index.css'
 import App from './App.vue'
 import * as echarts from 'echarts'
+import { createPinia } from 'pinia'
 
 const app = createApp(App)
+const pinia = createPinia()
+
+// 创建暗黑模式状态并全局提供
+// const isDark = ref(false)
+// app.provide('isDark', isDark)
 
 // 注册所有图标
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
@@ -75,5 +81,6 @@ function debounce(fn, delay) {
 }
 
 app.use(ElementPlus)
+app.use(pinia)
 app.config.globalProperties.$echarts = echarts
 app.mount('#app')

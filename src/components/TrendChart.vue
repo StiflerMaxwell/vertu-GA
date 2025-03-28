@@ -3,10 +3,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, watch, onUnmounted, nextTick, onBeforeMount, onBeforeUnmount } from 'vue'
 import * as echarts from 'echarts'
 import { ga4Client } from '../api/ga4'
 import { ElMessage } from 'element-plus'
+import { computed } from 'vue'
 
 const props = defineProps({
   startDate: {
@@ -24,6 +25,9 @@ const loading = ref(false)
 const chartData = ref([])
 let chart = null
 let resizeTimer = null
+
+// 响应式设计 - 屏幕宽度监听
+const screenWidth = ref(window.innerWidth)
 
 // 获取趋势数据
 const fetchData = async () => {
@@ -73,6 +77,7 @@ const initChart = () => {
 
 // 防抖处理函数确保不会过于频繁地调用 resize
 const handleResize = () => {
+  screenWidth.value = window.innerWidth
   if (resizeTimer) clearTimeout(resizeTimer)
   resizeTimer = setTimeout(() => {
     if (chart) {
@@ -110,6 +115,9 @@ const updateChart = () => {
     return `${date.substring(4, 6)}/${date.substring(6, 8)}`
   })
 
+  const isMobile = screenWidth.value <= 768
+  const isSmallMobile = screenWidth.value <= 480
+  
   const option = {
     tooltip: {
       trigger: 'axis',
@@ -127,20 +135,25 @@ const updateChart = () => {
         return result
       },
       textStyle: {
-        color: '#333'
+        color: '#333',
+        fontSize: isSmallMobile ? 10 : (isMobile ? 11 : 12)
       }
     },
     legend: {
       data: ['活跃用户', '页面浏览量', '平均会话时长(分钟)', '跳出率(%)'],
       textStyle: {
-        color: '#666'
-      }
+        color: '#666',
+        fontSize: isSmallMobile ? 10 : (isMobile ? 11 : 12)
+      },
+      itemWidth: isSmallMobile ? 12 : 15,
+      itemHeight: isSmallMobile ? 8 : 10,
+      itemGap: isSmallMobile ? 5 : 10
     },
     grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
-      top: '3%',
+      left: isMobile ? '3%' : '3%',
+      right: isMobile ? '8%' : '4%',
+      bottom: isMobile ? '10%' : '8%',
+      top: isMobile ? '20%' : '15%',
       containLabel: true
     },
     xAxis: {
@@ -149,11 +162,15 @@ const updateChart = () => {
       boundaryGap: false,
       axisLine: {
         lineStyle: {
-          color: '#999'
+          color: '#999',
+          width: isSmallMobile ? 0.5 : 1
         }
       },
       axisLabel: {
-        color: '#666'
+        color: '#666',
+        fontSize: isSmallMobile ? 9 : (isMobile ? 10 : 12),
+        interval: isMobile ? 'auto' : 0,
+        rotate: isMobile ? 30 : 0
       },
       splitLine: {
         show: false
@@ -166,14 +183,18 @@ const updateChart = () => {
         position: 'left',
         axisLine: {
           lineStyle: {
-            color: '#999'
+            color: '#999',
+            width: isSmallMobile ? 0.5 : 1
           }
         },
         axisLabel: {
-          color: '#666'
+          color: '#666',
+          fontSize: isSmallMobile ? 9 : (isMobile ? 10 : 12)
         },
         nameTextStyle: {
-          color: '#666'
+          color: '#666',
+          fontSize: isSmallMobile ? 9 : (isMobile ? 10 : 12),
+          padding: isMobile ? [0, 0, 0, 0] : [0, 0, 10, 0]
         },
         splitLine: {
           show: false
@@ -183,17 +204,21 @@ const updateChart = () => {
         type: 'value',
         name: '时长(分钟)',
         position: 'right',
-        offset: 40,
+        offset: isMobile ? 30 : 40,
         axisLine: {
           lineStyle: {
-            color: '#999'
+            color: '#999',
+            width: isSmallMobile ? 0.5 : 1
           }
         },
         axisLabel: {
-          color: '#666'
+          color: '#666',
+          fontSize: isSmallMobile ? 9 : (isMobile ? 10 : 12)
         },
         nameTextStyle: {
-          color: '#666'
+          color: '#666',
+          fontSize: isSmallMobile ? 9 : (isMobile ? 10 : 12),
+          padding: isMobile ? [0, 0, 0, 0] : [0, 0, 10, 0]
         },
         splitLine: {
           show: false
@@ -203,18 +228,24 @@ const updateChart = () => {
         type: 'value',
         name: '跳出率(%)',
         position: 'right',
-        offset: 80,
+        offset: isMobile ? 0 : 80,
         axisLine: {
           lineStyle: {
-            color: '#999'
+            color: '#999',
+            width: isSmallMobile ? 0.5 : 1
           }
         },
         axisLabel: {
           formatter: '{value}%',
-          color: '#666'
+          color: '#666',
+          fontSize: isSmallMobile ? 9 : (isMobile ? 10 : 12),
+          show: !isMobile
         },
         nameTextStyle: {
-          color: '#666'
+          color: '#666',
+          fontSize: isSmallMobile ? 9 : (isMobile ? 10 : 12),
+          padding: isMobile ? [0, 0, 0, 0] : [0, 0, 10, 0],
+          show: !isMobile
         },
         splitLine: {
           show: false
@@ -228,6 +259,11 @@ const updateChart = () => {
         type: 'line',
         smooth: true,
         yAxisIndex: 0,
+        symbol: isMobile ? 'none' : 'emptyCircle',
+        symbolSize: isSmallMobile ? 3 : 4,
+        lineStyle: {
+          width: isSmallMobile ? 1.5 : 2
+        },
         itemStyle: {
           color: '#409EFF'
         }
@@ -238,6 +274,11 @@ const updateChart = () => {
         type: 'line',
         smooth: true,
         yAxisIndex: 0,
+        symbol: isMobile ? 'none' : 'emptyCircle',
+        symbolSize: isSmallMobile ? 3 : 4,
+        lineStyle: {
+          width: isSmallMobile ? 1.5 : 2
+        },
         itemStyle: {
           color: '#67C23A'
         }
@@ -248,6 +289,11 @@ const updateChart = () => {
         type: 'line',
         smooth: true,
         yAxisIndex: 1,
+        symbol: isMobile ? 'none' : 'emptyCircle',
+        symbolSize: isSmallMobile ? 3 : 4,
+        lineStyle: {
+          width: isSmallMobile ? 1.5 : 2
+        },
         itemStyle: {
           color: '#E6A23C'
         }
@@ -258,6 +304,11 @@ const updateChart = () => {
         type: 'line',
         smooth: true,
         yAxisIndex: 2,
+        symbol: isMobile ? 'none' : 'emptyCircle',
+        symbolSize: isSmallMobile ? 3 : 4,
+        lineStyle: {
+          width: isSmallMobile ? 1.5 : 2
+        },
         itemStyle: {
           color: '#F56C6C'
         }
@@ -297,13 +348,14 @@ watch(() => chartData.value, () => {
   })
 })
 
-onMounted(() => {
+onBeforeMount(() => {
   initChart()
   // 确保组件挂载后，监听全局折叠事件
   document.addEventListener('collapseChange', forceResize)
+  window.addEventListener('resize', handleResize)
 })
 
-onUnmounted(() => {
+onBeforeUnmount(() => {
   if (chart) {
     chart.dispose()
     chart = null
@@ -317,11 +369,52 @@ onUnmounted(() => {
     resizeTimer = null
   }
 })
+
+onMounted(() => {
+  handleResize()
+})
 </script>
 
 <style scoped>
 .chart-container {
   width: 100%;
   height: 400px;
+}
+
+/* 移动端适配 */
+@media screen and (max-width: 768px) {
+  .chart-container {
+    height: 240px;
+  }
+  
+  .trend-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .trend-title {
+    font-size: 14px;
+    margin-bottom: 5px;
+  }
+  
+  .trend-controls {
+    width: 100%;
+    justify-content: space-between;
+    gap: 6px;
+  }
+}
+
+/* 小屏幕设备优化 */
+@media screen and (max-width: 480px) {
+  .chart-container {
+    height: 180px;
+  }
+  
+  .trend-controls .el-button {
+    padding: 4px 8px;
+    font-size: 11px;
+    min-width: 60px;
+  }
 }
 </style>

@@ -97,11 +97,10 @@
     <!-- 历史记录对话框 -->
     <el-dialog
       v-model="showHistory"
-      title="性能测试历史记录"
+      title="历史记录查询"
       width="80%"
-      destroy-on-close
-      align-center
       class="history-dialog"
+      append-to-body
     >
       <div class="history-table-wrapper">
         <el-table 
@@ -193,6 +192,7 @@ const formatTime = (timestamp) => {
 // 加载最新的性能数据
 const loadLatestMetrics = async () => {
   try {
+    console.log('尝试加载最新性能指标...')
     const history = await performanceService.getPerformanceHistory(1) // 只获取最新的一条
     if (history.length > 0) {
       const latest = history[0]
@@ -207,9 +207,22 @@ const loadLatestMetrics = async () => {
         tbt: latest.metrics.tbt,
         tbt_score: latest.metrics.tbt_score
       }
+      console.log('成功加载最新性能指标')
+    } else {
+      console.log('没有找到历史性能数据')
     }
   } catch (error) {
-    console.error('Failed to load latest metrics:', error)
+    console.error('加载最新性能指标失败:', error)
+    console.error('错误代码:', error.code)
+    console.error('错误信息:', error.message)
+    
+    if (error.code === 'permission-denied') {
+      ElMessage.error('权限错误: 无法读取性能数据。请检查 Firestore 规则设置。')
+    } else if (error.code === 'unavailable') {
+      ElMessage.error('服务不可用: 请检查网络连接')
+    } else {
+      ElMessage.error('加载性能数据失败: ' + error.message)
+    }
   }
 }
 
@@ -217,10 +230,21 @@ const loadLatestMetrics = async () => {
 const loadHistoryData = async () => {
   loading.value = true
   try {
+    console.log('加载性能历史数据...')
     historyData.value = await performanceService.getPerformanceHistory()
+    console.log(`成功加载了 ${historyData.value.length} 条历史记录`)
   } catch (error) {
-    console.error('Failed to load history:', error)
-    ElMessage.error('Failed to load performance history')
+    console.error('加载历史数据失败:', error)
+    console.error('错误代码:', error.code)
+    console.error('错误信息:', error.message)
+    
+    if (error.code === 'permission-denied') {
+      ElMessage.error('权限错误: 无法读取历史数据。请检查 Firestore 规则设置。')
+    } else if (error.code === 'unavailable') {
+      ElMessage.error('服务不可用: 请检查网络连接')
+    } else {
+      ElMessage.error('加载历史数据失败: ' + error.message)
+    }
   } finally {
     loading.value = false
   }
@@ -232,12 +256,23 @@ const runTest = async () => {
   testing.value = true
   
   try {
+    console.log('开始执行性能测试...')
     const result = await runLighthouseTest(url.value, {
       device: selectedDevice.value
     })
     
     // 记录到数据库
-    await performanceService.logPerformanceMetrics(result, url.value)
+    try {
+      console.log('正在保存性能测试结果到数据库...')
+      await performanceService.logPerformanceMetrics(result, url.value)
+      console.log('性能测试结果已保存到数据库')
+    } catch (dbError) {
+      console.error('保存到数据库失败:', dbError)
+      console.error('错误代码:', dbError.code)
+      console.error('错误信息:', dbError.message)
+      
+      ElMessage.warning('测试完成，但无法保存到数据库: ' + dbError.message)
+    }
     
     // 更新当前显示的数据
     lighthouseData.value = result
@@ -245,10 +280,10 @@ const runTest = async () => {
     // 重新加载历史数据
     await loadHistoryData()
     
-    ElMessage.success('Performance test completed')
+    ElMessage.success('性能测试完成')
   } catch (error) {
-    console.error('Test failed:', error)
-    ElMessage.error('Performance test failed')
+    console.error('性能测试失败:', error)
+    ElMessage.error('性能测试失败: ' + error.message)
   } finally {
     testing.value = false
   }

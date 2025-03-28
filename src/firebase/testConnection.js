@@ -16,6 +16,17 @@ export const testFirebaseConnection = async () => {
     return true
   } catch (error) {
     console.error('Firebase connection test failed:', error)
+    console.error('Error code:', error.code)
+    console.error('Error message:', error.message)
+    console.error('Full error details:', JSON.stringify(error, null, 2))
+    
+    // 根据错误代码提供更具体的信息
+    if (error.code === 'permission-denied') {
+      console.error('权限被拒绝，请检查 Firestore 安全规则')
+    } else if (error.code === 'unavailable') {
+      console.error('Firebase 服务不可用，请检查网络连接')
+    }
+    
     return false
   }
 } 

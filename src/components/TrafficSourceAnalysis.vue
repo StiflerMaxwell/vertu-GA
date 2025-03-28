@@ -1251,4 +1251,147 @@ onMounted(() => {
   color: var(--el-color-primary);
   cursor: pointer;
 }
+
+/* 移动端适配 */
+@media screen and (max-width: 768px) {
+  .traffic-source-analysis {
+    padding: 12px;
+  }
+  
+  .header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  
+  .traffic-title {
+    font-size: 15px;
+  }
+  
+  .filter-row {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+  
+  .filter-group {
+    width: 100%;
+  }
+  
+  .date-picker-group,
+  .filter-input-group {
+    gap: 6px;
+  }
+  
+  .traffic-metrics {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  
+  .metric-card {
+    padding: 12px;
+  }
+  
+  .chart-container {
+    height: 240px;
+    margin-top: 12px;
+  }
+  
+  .traffic-table-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  
+  .search-input {
+    width: 100%;
+  }
+  
+  :deep(.el-pagination) {
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 12px;
+  }
+  
+  :deep(.el-table .cell) {
+    padding: 6px;
+    font-size: 12px;
+  }
+  
+  .action-buttons {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  
+  .source-name {
+    font-size: 13px;
+  }
+}
+
+/* 小屏幕设备优化 */
+@media screen and (max-width: 480px) {
+  .traffic-source-analysis {
+    padding: 10px;
+  }
+  
+  .traffic-title {
+    font-size: 14px;
+  }
+  
+  .metric-card {
+    padding: 10px;
+  }
+  
+  .metric-value {
+    font-size: 16px;
+  }
+  
+  .metric-title {
+    font-size: 11px;
+  }
+  
+  .percentage-change {
+    font-size: 10px;
+  }
+  
+  .chart-container {
+    height: 180px;
+  }
+  
+  .table-title {
+    font-size: 13px;
+  }
+  
+  :deep(.el-tabs__item) {
+    padding: 0 8px;
+    font-size: 12px;
+    height: 36px;
+    line-height: 36px;
+  }
+  
+  :deep(.el-date-editor) {
+    width: 100% !important;
+  }
+  
+  .source-name {
+    font-size: 12px;
+  }
+  
+  :deep(.el-pagination .el-select .el-input) {
+    width: 85px;
+  }
+  
+  :deep(.el-pagination .btn-prev),
+  :deep(.el-pagination .btn-next) {
+    min-width: 26px;
+  }
+  
+  :deep(.el-pagination .el-pager li) {
+    min-width: 26px;
+    font-size: 11px;
+  }
+}
 </style> 

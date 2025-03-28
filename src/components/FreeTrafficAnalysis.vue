@@ -323,6 +323,9 @@ onMounted(async () => {
 
 .analysis-header {
   margin-bottom: var(--spacing-xl);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .title-section {
@@ -473,11 +476,146 @@ onMounted(async () => {
   }
 }
 
-/* 响应式布局 */
+/* 移动端适配 */
 @media screen and (max-width: 768px) {
-  :deep(.el-table) {
+  .free-traffic-analysis {
+    padding: 12px;
+  }
+  
+  .analysis-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  
+  .analysis-title {
+    font-size: 15px;
+  }
+  
+  .date-picker-section {
     width: 100%;
+  }
+  
+  .header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .date-selector {
+    width: 100%;
+  }
+  
+  .metrics-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  
+  .data-table {
     overflow-x: auto;
+  }
+  
+  :deep(.el-tabs__item) {
+    padding: 0 8px;
+    font-size: 13px;
+    height: 38px;
+  }
+  
+  .pagination-container {
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  
+  :deep(.el-pagination) {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  :deep(.el-table .cell) {
+    padding: 6px;
+    font-size: 12px;
+  }
+  
+  .filter-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .search-input {
+    width: 100%;
+  }
+  
+  .table-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}
+
+/* 小屏幕设备优化 */
+@media screen and (max-width: 480px) {
+  .free-traffic-analysis {
+    padding: 10px;
+  }
+  
+  .analysis-title {
+    font-size: 14px;
+  }
+  
+  :deep(.el-tabs__item) {
+    font-size: 12px;
+    padding: 0 6px;
+    height: 36px;
+  }
+  
+  .metric-card {
+    padding: 10px;
+  }
+  
+  .metric-value {
+    font-size: 16px;
+  }
+  
+  .metric-label {
+    font-size: 11px;
+  }
+  
+  .metric-subtext {
+    font-size: 10px;
+  }
+  
+  .chart-container {
+    height: 180px;
+    margin: 8px 0;
+  }
+  
+  .table-title {
+    font-size: 13px;
+  }
+  
+  .action-button {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+  
+  :deep(.el-date-editor) {
+    width: 100% !important;
+  }
+  
+  :deep(.el-pagination .el-select .el-input) {
+    width: 85px;
+  }
+  
+  :deep(.el-pagination .btn-prev),
+  :deep(.el-pagination .btn-next) {
+    min-width: 26px;
+  }
+  
+  :deep(.el-pagination .el-pager li) {
+    min-width: 26px;
+    font-size: 11px;
   }
 }
 </style>

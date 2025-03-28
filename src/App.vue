@@ -240,6 +240,21 @@
                 <PerformanceMetrics />
               </div>
             </el-collapse-item>
+
+            <!-- WooCommerce Payment Link Products -->
+            <el-collapse-item :name="'payment-links'" class="section-item payment-links">
+              <template #title>
+                <div class="section-header">
+                  <h2 class="section-title">Payment Link Products</h2>
+                  <div class="section-actions">
+                    <el-tag size="small" type="primary">Products</el-tag>
+                  </div>
+                </div>
+              </template>
+              <div class="section-content">
+                <PaymentLinkProducts />
+              </div>
+            </el-collapse-item>
           </el-collapse>
         </template>
       </main>
@@ -248,7 +263,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, watch, markRaw, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch, markRaw, nextTick, provide } from 'vue'
 import { ga4Client, fetchGeoDistribution, fetchDeviceDistribution, fetchSourceDistribution, fetchTrendData } from './api/ga4'
 import { AnalyticsInsight } from './utils/analytics'
 import DataCard from './components/DataCard.vue'
@@ -262,6 +277,7 @@ import PerformanceMetrics from './components/PerformanceMetrics.vue'
 import GoogleAlerts from './components/GoogleSearchFeed.vue'
 import RealtimeTraffic from './components/RealtimeTraffic.vue'
 import EcommerceAnalysis from './components/EcommerceAnalysis.vue'
+import PaymentLinkProducts from './components/PaymentLinkProducts.vue'
 import {
   FullScreen as IconFullScreen,
   Close as IconClose,
@@ -500,7 +516,8 @@ const sectionNames = [
   'ecommerce',
   'free-traffic',
   'alerts',
-  'performance'
+  'performance',
+  'payment-links'
 ]
 
 // 添加 activeSections 存储当前展开的区块
@@ -828,6 +845,8 @@ const getInsightIcon = (type) => {
 }
 
 const isDark = ref(false)
+// 提供isDark变量给子组件
+provide('isDark', isDark)
 
 const toggleTheme = () => {
   isDark.value = !isDark.value
@@ -1235,7 +1254,7 @@ watch(activeSections, (newSections, oldSections) => {
   }
 
   .dashboard-content {
-    padding: 16px;
+    padding: 2px;
   }
   
   .section-header {
@@ -1778,6 +1797,252 @@ section {
     .el-button {
       flex: 1;
     }
+  }
+}
+
+/* 全局弹窗样式 */
+.el-dialog {
+  margin: 0 auto;
+  margin-top: 15vh;
+  border-radius: 8px;
+}
+
+.el-dialog__header {
+  margin: 0;
+  padding: 20px;
+  border-bottom: 1px solid var(--el-border-color-light);
+}
+
+.el-dialog__headerbtn {
+  top: 20px;
+}
+
+.el-dialog__body {
+  padding: 20px;
+}
+
+/* 暗黑模式下弹窗样式 */
+html.dark .el-dialog {
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
+}
+
+html.dark .el-dialog__header {
+  border-bottom-color: var(--el-border-color-darker);
+}
+
+html.dark .el-dialog__title {
+  color: var(--el-text-color-primary);
+}
+
+html.dark .el-dialog__close {
+  color: var(--el-text-color-primary);
+}
+
+html.dark .el-dialog__close:hover {
+  color: var(--el-color-primary);
+}
+
+html.dark .el-descriptions__label {
+  background-color: var(--el-fill-color-darker);
+}
+
+html.dark .el-descriptions__cell {
+  background-color: var(--el-bg-color);
+}
+
+/* 响应式弹窗样式 */
+@media screen and (max-width: 768px) {
+  .el-dialog {
+    width: 95% !important;
+    margin-top: 10vh;
+  }
+
+  .el-dialog__body {
+    padding: 15px;
+  }
+}
+
+/* 移动端适配全局样式 */
+@media screen and (max-width: 768px) {
+  :root {
+    --border-radius-lg: 8px;
+    --border-radius-md: 6px;
+    --border-radius-sm: 4px;
+    --spacing-lg: 14px;
+    --spacing-md: 10px;
+    --spacing-sm: 6px;
+  }
+  
+  .el-card {
+    margin-bottom: 14px;
+  }
+  
+  .el-card__header {
+    padding: 10px 14px;
+  }
+  
+  .el-card__body {
+    padding: 2px !important;
+  }
+  
+  /* Dashboard内容区域2px内边距 */
+  .dashboard-content {
+    padding: 2px !important;
+  }
+  
+  .dashboard-content .el-card__body,
+  .el-card.dashboard-card .el-card__body {
+    padding: 2px !important;
+  }
+  
+  .el-table {
+    font-size: 13px;
+  }
+  
+  .el-button {
+    padding: 7px 14px;
+    font-size: 13px;
+  }
+  
+  .el-button--small {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+  
+  .el-form-item {
+    margin-bottom: 14px;
+  }
+  
+  .el-input, .el-select {
+    font-size: 13px;
+  }
+  
+  .el-dialog {
+    margin: 8px !important;
+  }
+  
+  .el-dialog__header {
+    padding: 14px;
+  }
+  
+  .el-dialog__body {
+    padding: 14px;
+  }
+  
+  .el-dialog__footer {
+    padding: 10px 14px;
+  }
+  
+  h1 {
+    font-size: 20px;
+  }
+  
+  h2 {
+    font-size: 18px;
+  }
+  
+  h3 {
+    font-size: 16px;
+  }
+  
+  h4 {
+    font-size: 14px;
+  }
+  
+  p {
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 8px 0;
+  }
+}
+
+/* 小屏幕设备优化 */
+@media screen and (max-width: 480px) {
+  :root {
+    --spacing-lg: 10px;
+    --spacing-md: 6px;
+    --spacing-sm: 4px;
+  }
+  
+  .el-card__header {
+    padding: 8px 10px;
+  }
+  
+  .el-card__body {
+    padding: 2px;
+  }
+  
+  /* Dashboard内容区域2px内边距 */
+  .dashboard-content {
+    padding: 2px !important;
+  }
+  
+  .dashboard-content .el-card__body,
+  .el-card.dashboard-card .el-card__body {
+    padding: 2px !important;
+  }
+  
+  .el-table {
+    font-size: 12px;
+  }
+  
+  .el-button {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+  
+  .el-button--small {
+    padding: 3px 8px;
+    font-size: 11px;
+  }
+  
+  .el-input, .el-select {
+    font-size: 12px;
+  }
+  
+  .el-input__inner {
+    height: 30px;
+    line-height: 30px;
+  }
+  
+  .el-form-item__label {
+    font-size: 12px;
+    padding: 0 8px 0 0;
+  }
+  
+  .el-dialog__header {
+    padding: 10px;
+  }
+  
+  .el-dialog__body {
+    padding: 10px;
+  }
+  
+  .el-dialog__footer {
+    padding: 8px 10px;
+  }
+  
+  h1 {
+    font-size: 18px;
+  }
+  
+  h2 {
+    font-size: 16px;
+  }
+  
+  h3 {
+    font-size: 14px;
+  }
+  
+  h4 {
+    font-size: 13px;
+  }
+  
+  p {
+    font-size: 12px;
+    line-height: 1.4;
+    margin: 6px 0;
   }
 }
 </style> 

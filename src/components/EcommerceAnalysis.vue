@@ -1087,4 +1087,168 @@ watch([() => props.startDate, () => props.endDate], () => {
   white-space: nowrap;
   display: inline-block;
 }
+
+/* 移动端适配 */
+@media screen and (max-width: 768px) {
+  .ecommerce-analysis {
+    padding: 14px;
+  }
+  
+  .analysis-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  
+  .analysis-title {
+    font-size: 15px;
+  }
+  
+  .search-section {
+    width: 100%;
+  }
+  
+  .header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  
+  .filter-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .date-selector,
+  .platform-selector,
+  .filter-input {
+    width: 100%;
+  }
+  
+  .metrics-cards {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  
+  .comparison-value {
+    font-size: 11px;
+  }
+  
+  .chart-container {
+    height: 240px;
+    padding: 14px;
+  }
+  
+  .chart-title {
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+  
+  .product-list-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  
+  .pagination-container {
+    justify-content: center;
+    margin-top: 12px;
+  }
+  
+  :deep(.el-pagination) {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  :deep(.el-table) {
+    font-size: 12px;
+  }
+  
+  :deep(.el-table .cell) {
+    padding: 5px 6px;
+  }
+  
+  .product-name {
+    max-width: 200px;
+  }
+  
+  .source-medium-info {
+    flex-direction: column;
+    gap: 2px;
+    align-items: flex-start;
+  }
+  
+  .separator {
+    display: none;
+  }
+}
+
+/* 小屏幕设备优化 */
+@media screen and (max-width: 480px) {
+  .ecommerce-analysis {
+    padding: 10px;
+  }
+  
+  .analysis-title {
+    font-size: 14px;
+  }
+  
+  .metric-card {
+    padding: 10px;
+  }
+  
+  .metric-value {
+    font-size: 16px;
+  }
+  
+  .metric-label {
+    font-size: 11px;
+  }
+  
+  .comparison-value {
+    font-size: 10px;
+  }
+  
+  .chart-container {
+    height: 180px;
+    padding: 10px;
+  }
+  
+  .chart-title {
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+  
+  .action-buttons .el-button {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+  
+  .table-title {
+    font-size: 13px;
+  }
+  
+  .product-info {
+    gap: 6px;
+  }
+  
+  .product-name {
+    max-width: 150px;
+  }
+  
+  :deep(.el-pagination .el-select .el-input) {
+    width: 85px;
+  }
+  
+  :deep(.el-pagination .btn-prev),
+  :deep(.el-pagination .btn-next) {
+    min-width: 26px;
+  }
+  
+  :deep(.el-pagination .el-pager li) {
+    min-width: 26px;
+    font-size: 11px;
+  }
+}
 </style> 

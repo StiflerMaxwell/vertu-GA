@@ -19,6 +19,16 @@
             <el-tag size="small" type="success">
               {{ searchInfo.formattedSearchTime || 0 }}s
             </el-tag>
+            <template v-if="searchInfo.dataSource">
+              <el-tooltip :content="searchInfo.dataSource === '缓存' && searchInfo.cacheTimestamp ? formatCacheTime(searchInfo.cacheTimestamp) : ''">
+                <el-tag 
+                  size="small" 
+                  :type="searchInfo.dataSource === 'API' ? 'danger' : 'success'"
+                >
+                  {{ searchInfo.dataSource }}
+                </el-tag>
+              </el-tooltip>
+            </template>
           </div>
         </div>
         <div class="header-right">
@@ -69,13 +79,25 @@
             clearable
           >
             <template #append>
+              <el-tooltip 
+                :content="searchOptions.lr === 'lang_zh-CN' ? '强制刷新数据' : 'Force refresh data'"
+              >
+                <el-button 
+                  :loading="loading"
+                  @click="handleForceRefresh"
+                  :disabled="!searchQuery.trim()"
+                  type="primary"
+                >
+                  <el-icon><Refresh /></el-icon>
+                </el-button>
+              </el-tooltip>
               <el-button 
                 :loading="loading"
                 @click="handleSearch"
                 :disabled="!searchQuery.trim()"
               >
-                <el-icon><Refresh /></el-icon>
-                {{ searchOptions.lr === 'lang_zh-CN' ? '刷新' : 'Refresh' }}
+                <el-icon><Search /></el-icon>
+                {{ searchOptions.lr === 'lang_zh-CN' ? '搜索' : 'Search' }}
               </el-button>
             </template>
           </el-input>
@@ -203,13 +225,13 @@
         <!-- 分页 -->
         <div class="pagination-wrapper">
           <el-pagination
-            v-model:current-page="currentPage"
+            v-model:current-page="searchOptions.page"
             :page-size="searchOptions.num"
-            :total="Math.min(parseInt(searchInfo.totalResults) || 0, 100)"
-            :disabled="loading"
-            :background="true"
-            layout="prev, pager, next, total"
+            :layout="screenWidth <= 768 ? 'prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
+            :total="getTotalResults"
+            :page-sizes="[10, 20, 30, 50]"
             @current-change="handlePageChange"
+            @size-change="handleSizeChange"
           />
         </div>
       </template>
@@ -222,10 +244,21 @@
     </div>
  
   </el-card>
+
+  <el-dialog
+    v-model="imagePreviewVisible"
+    :append-to-body="true"
+    :modal="true"
+    width="90%"
+    max-width="800px"
+    class="image-preview-dialog"
+  >
+    <!-- 图片预览内容 -->
+  </el-dialog>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, onBeforeMount, onBeforeUnmount } from 'vue'
 import { 
   Refresh, 
   ArrowRight, 
@@ -291,6 +324,12 @@ const searchOptions = ref({
 const todayApiCalls = ref(0)
 const searchStartTime = ref(0)
 const searchMetrics = ref({})
+
+// 为缓存添加额外属性
+const allSearchItems = ref([]) // 存储所有搜索结果
+const lastSearchedQuery = ref('') // 上次搜索的关键词
+const lastSearchOptions = ref({}) // 上次搜索的选项
+const isFirstSearch = ref(true) // 是否为首次搜索
 
 // Content categorization logic
 const categorizeContent = (item) => {
@@ -399,16 +438,46 @@ const handleSearchOptionsChange = () => {
 // 初始化加载
 onMounted(async () => {
   try {
+    console.log('初始化加载...')
     // 首次加载时不强制刷新，只从缓存获取
     const results = await searchService.search(searchQuery.value, searchOptions.value, false)
     if (results) {
-      searchItems.value = results.items || []
+      // 保存所有搜索结果
+      allSearchItems.value = results.items ? results.items.map(item => ({
+        ...item,
+        category: categorizeContent(item)
+      })) : []
+      
+      // 当前显示项目只包含当前页的数据
+      searchItems.value = allSearchItems.value.slice(0, searchOptions.value.num)
       searchInfo.value = results.searchInfo || {}
+      lastSearchedQuery.value = searchQuery.value
+      lastSearchOptions.value = { ...searchOptions.value }
+      
+      console.log(`初始加载获取了 ${allSearchItems.value.length} 条结果`)
     }
   } catch (error) {
     console.error('Initial load error:', error)
   }
 })
+
+// 更新要显示的数据项
+const updateDisplayedItems = () => {
+  // 如果没有搜索结果，直接返回
+  if (!allSearchItems.value.length) {
+    searchItems.value = []
+    return
+  }
+  
+  // 计算当前页的索引范围
+  const startIndex = (currentPage.value - 1) * searchOptions.value.num
+  const endIndex = startIndex + searchOptions.value.num
+  
+  // 从所有项目中提取当前页的数据
+  searchItems.value = allSearchItems.value.slice(startIndex, endIndex)
+  
+  console.log(`显示第 ${currentPage.value} 页数据，共 ${searchItems.value.length} 条结果（总共 ${allSearchItems.value.length} 条）`)
+}
 
 // 手动刷新搜索
 const handleSearch = async () => {
@@ -416,16 +485,71 @@ const handleSearch = async () => {
   
   loading.value = true
   searchStartTime.value = performance.now()
+  currentPage.value = 1 // 重置页码
   
   try {
-    // 手动搜索时强制刷新
-    const results = await searchService.search(searchQuery.value, searchOptions.value, true)
-    searchInfo.value = results.searchInfo
-    searchItems.value = results.items || []
+    console.log('执行搜索:', searchQuery.value, searchOptions.value)
+    
+    // 判断是否需要强制刷新
+    // 1. 如果是今天第一次搜索这个关键词+选项组合，强制刷新
+    // 2. 如果明确请求刷新，强制刷新
+    // 3. 否则尝试使用缓存
+    const forceRefresh = 
+      isFirstSearch.value || 
+      searchQuery.value !== lastSearchedQuery.value ||
+      JSON.stringify(searchOptions.value) !== JSON.stringify(lastSearchOptions.value)
+    
+    // 重置搜索选项
+    const searchOpts = {
+      ...searchOptions.value,
+      start: 1, // 重置为第一页
+      num: searchOptions.value.num || 10
+    }
+    
+    console.log(`搜索模式: ${forceRefresh ? '强制刷新' : '优先缓存'}`)
+    
+    // 使用 searchService 来搜索，可能从缓存中获取数据
+    const results = await searchService.search(searchQuery.value, searchOpts, forceRefresh)
+    
+    // 更新搜索信息
+    searchInfo.value = results.searchInfo || {}
+    
+    // 如果结果中包含数据来源信息，显示出来
+    if (results.fromCache) {
+      searchInfo.value.dataSource = '缓存'
+      searchInfo.value.cacheTimestamp = results.cacheTimestamp
+    } else {
+      searchInfo.value.dataSource = 'API'
+    }
+    
+    // 保存所有搜索结果，并添加分类标签
+    allSearchItems.value = results.items ? results.items.map(item => ({
+      ...item,
+      category: categorizeContent(item)
+    })) : []
+    
+    // 当前显示项目只包含当前页的数据
+    updateDisplayedItems()
+    
+    // 保存上次搜索的查询和选项
+    lastSearchedQuery.value = searchQuery.value
+    lastSearchOptions.value = { ...searchOptions.value }
+    isFirstSearch.value = false
+    
+    // 保存搜索历史
+    saveToHistory(searchQuery.value)
+    
+    // 计算搜索时间
+    const endTime = performance.now()
+    const searchTime = (endTime - searchStartTime.value) / 1000
+    console.log(`Search time: ${searchTime.toFixed(2)} seconds`)
+    searchInfo.value.formattedSearchTime = searchTime.toFixed(2)
+    searchInfo.value.formattedTotalResults = allSearchItems.value.length
   } catch (error) {
     console.error('Search error:', error)
     ElMessage.error(error.message || 'Search failed')
     searchItems.value = []
+    allSearchItems.value = []
   } finally {
     loading.value = false
   }
@@ -434,20 +558,29 @@ const handleSearch = async () => {
 // 防抖处理
 const debouncedSearch = useDebounceFn(handleSearch, 300)
 
-// 刷新搜索
-const refreshSearch = () => {
-  currentPage.value = 1
-  handleSearch()
-}
-
+// 修改翻页函数 - 不再请求API
 const handlePageChange = (page) => {
+  if (page === currentPage.value) return
+  
+  console.log(`切换到第 ${page} 页`)
+  
+  // 设置临时加载状态
+  loading.value = true
+  
+  // 更新页码
   currentPage.value = page
-  handleSearch()
-  // 平滑滚动到顶部
+  
+  // 从已缓存的所有结果中获取当前页的数据
+  updateDisplayedItems()
+  
+  // 用户体验优化：平滑滚动到顶部
   window.scrollTo({
     top: 0,
     behavior: 'smooth'
   })
+  
+  // 移除加载状态
+  loading.value = false
 }
 
 const formatDate = (date) => {
@@ -588,6 +721,111 @@ const formatMetric = (value) => {
     return value.toFixed(2)
   }
   return value
+}
+
+// 强制刷新搜索
+const handleForceRefresh = async () => {
+  if (!searchQuery.value.trim()) return
+  
+  loading.value = true
+  searchStartTime.value = performance.now()
+  currentPage.value = 1 // 重置页码
+  
+  try {
+    console.log('强制刷新搜索:', searchQuery.value, searchOptions.value)
+    
+    // 重置搜索选项
+    const searchOpts = {
+      ...searchOptions.value,
+      start: 1, // 重置为第一页
+      num: searchOptions.value.num || 10
+    }
+    
+    // 使用 searchService 进行搜索，强制刷新数据
+    const results = await searchService.search(searchQuery.value, searchOpts, true)
+    
+    // 更新搜索信息
+    searchInfo.value = results.searchInfo || {}
+    searchInfo.value.dataSource = 'API'
+    
+    // 保存所有搜索结果，并添加分类标签
+    allSearchItems.value = results.items ? results.items.map(item => ({
+      ...item,
+      category: categorizeContent(item)
+    })) : []
+    
+    // 当前显示项目只包含当前页的数据
+    updateDisplayedItems()
+    
+    // 保存上次搜索的查询和选项
+    lastSearchedQuery.value = searchQuery.value
+    lastSearchOptions.value = { ...searchOptions.value }
+    isFirstSearch.value = false
+    
+    // 保存搜索历史
+    saveToHistory(searchQuery.value)
+    
+    // 计算搜索时间
+    const endTime = performance.now()
+    const searchTime = (endTime - searchStartTime.value) / 1000
+    console.log(`Search time: ${searchTime.toFixed(2)} seconds`)
+    searchInfo.value.formattedSearchTime = searchTime.toFixed(2)
+    searchInfo.value.formattedTotalResults = allSearchItems.value.length
+    
+    // 显示成功消息
+    ElMessage.success(searchOptions.value.lr === 'lang_zh-CN' ? '数据已强制刷新' : 'Data forcefully refreshed')
+  } catch (error) {
+    console.error('Force refresh error:', error)
+    ElMessage.error(error.message || 'Refresh failed')
+    searchItems.value = []
+    allSearchItems.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+// 格式化缓存时间
+const formatCacheTime = (timestamp) => {
+  if (!timestamp) return ''
+  
+  // 如果是 Firestore Timestamp，转换为 JS Date
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
+  
+  return dayjs(date).format('YYYY-MM-DD HH:mm:ss')
+}
+
+const imagePreviewVisible = ref(false)
+
+// 响应式设计 - 屏幕宽度
+const screenWidth = ref(window.innerWidth)
+
+// 监听窗口大小变化
+const handleResize = () => {
+  screenWidth.value = window.innerWidth
+}
+
+onBeforeMount(() => {
+  window.addEventListener('resize', handleResize)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
+})
+
+onMounted(() => {
+  handleResize()
+  // ... other onMounted code ...
+})
+
+// 计算总结果数
+const getTotalResults = computed(() => {
+  return allSearchItems.value?.length || Math.min(parseInt(searchInfo.totalResults) || 0, 100)
+})
+
+// 处理每页显示数量变化
+const handleSizeChange = (size) => {
+  searchOptions.num = size
+  handleSearch(false)
 }
 </script>
 
@@ -821,51 +1059,146 @@ const formatMetric = (value) => {
   }
 }
 
-/* 响应式布局 */
+/* 增强移动端适配 */
 @media screen and (max-width: 768px) {
-  .item-container {
+  .google-search-feed {
+    padding: 8px;
+  }
+  
+  .search-options {
     flex-direction: column;
+    gap: 8px;
   }
-
-  .item-image {
+  
+  .option-group {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  
+  .option-item {
+    flex-basis: calc(50% - 6px);
+  }
+  
+  .search-row {
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  
+  .search-query {
     width: 100%;
-    height: 200px;
   }
-
-  .item-meta {
+  
+  .search-button {
+    width: 100%;
+  }
+  
+  .search-tabs {
+    margin-top: 12px;
+  }
+  
+  .result-item {
+    padding: 10px;
+    margin-bottom: 10px;
+  }
+  
+  .result-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 8px;
+    gap: 4px;
   }
-
-  .header-right {
-    flex-direction: column;
-    gap: 8px;
+  
+  .result-meta {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 12px;
   }
-
-  .lang-select,
-  .time-select,
-  .sort-select,
-  .search-input {
-    width: 100%;
-  }
-
-  .lang-select {
+  
+  .result-pagination {
+    margin-top: 12px;
     display: flex;
     justify-content: center;
   }
-
-  .pagination-wrapper {
-    margin: 16px 0;
-    padding: 12px 0;
-  }
-
-  .item-title {
-    font-size: 16px;
+  
+  .result-title {
+    font-size: 15px;
+    line-height: 1.3;
+    margin-bottom: 4px;
   }
   
-  .item-description {
+  .result-link {
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+  
+  .result-description {
     font-size: 13px;
+    line-height: 1.4;
+    margin-top: 4px;
+  }
+  
+  :deep(.el-pagination) {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+/* 小屏幕设备优化 */
+@media screen and (max-width: 480px) {
+  .google-search-feed {
+    padding: 6px;
+  }
+  
+  .search-tabs :deep(.el-tabs__header) {
+    margin-bottom: 8px;
+  }
+  
+  .search-tabs :deep(.el-tabs__nav) {
+    display: flex;
+    width: 100%;
+  }
+  
+  .search-tabs :deep(.el-tabs__item) {
+    flex: 1;
+    text-align: center;
+    padding: 0 4px;
+    font-size: 11px;
+    height: 36px;
+    line-height: 36px;
+  }
+  
+  .result-item {
+    padding: 8px;
+    margin-bottom: 8px;
+  }
+  
+  .result-title {
+    font-size: 14px;
+    margin-bottom: 3px;
+  }
+  
+  .result-link {
+    font-size: 11px;
+    margin-bottom: 3px;
+  }
+  
+  .result-description {
+    font-size: 12px;
+    line-height: 1.3;
+    margin-top: 3px;
+  }
+  
+  .image-container {
+    flex-direction: column;
+    height: auto;
+  }
+  
+  .result-image {
+    width: 100%;
+    height: auto;
+    max-height: 160px;
+    margin-bottom: 6px;
   }
 }
 
@@ -1105,6 +1438,36 @@ const formatMetric = (value) => {
     .el-input__wrapper {
       background-color: var(--el-bg-color);
     }
+  }
+}
+
+/* 图片预览弹窗样式调整 */
+.image-preview-dialog {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-preview-dialog .el-dialog__body {
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media screen and (max-width: 768px) {
+  .image-preview-dialog {
+    width: 95% !important;
+    margin: 10px auto !important;
+  }
+  
+  .image-preview-dialog .el-dialog__close {
+    font-size: 20px;
+    color: white;
+    background-color: rgba(0, 0, 0, 0.5);
+    border-radius: 50%;
+    padding: 5px;
   }
 }
 </style> 

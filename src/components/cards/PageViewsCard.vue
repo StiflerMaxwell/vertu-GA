@@ -112,8 +112,11 @@ const handlePageChange = (page) => {
     border: none;
     
     .el-card__body {
-      padding: 0;
-      background-color: var(--bg-primary);
+      padding: 16px;
+      
+      @media screen and (max-width: 768px) {
+        padding: 2px !important;
+      }
     }
 
     .el-card__header {

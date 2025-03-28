@@ -342,7 +342,11 @@ onMounted(() => {
 }
 
 :deep(.el-card__body) {
-  padding: 16px;
+  padding: var(--card-content-padding, 24px);
+  
+  @media screen and (max-width: 768px) {
+    padding: 2px !important;
+  }
 }
 
 @media (max-width: 768px) {
