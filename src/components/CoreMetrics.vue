@@ -11,9 +11,12 @@
                   <el-icon><QuestionFilled /></el-icon>
                 </el-tooltip>
               </div>
-              <div class="metric-value">{{ formatValue(metric.value, metric.type) }}</div>
-              <div class="metric-trend" :class="getTrendClass(metric.trend)">
-                {{ formatTrend(metric.trend) }}
+              <div class="metric-body">
+                <div class="metric-value">{{ formatValue(metric.value, metric.type) }}</div>
+                <div class="metric-trend" :class="getTrendClass(metric.trend)">
+                  <el-icon v-if="metric.trend"><component :is="getTrendIcon(metric.trend)" /></el-icon>
+                  {{ formatTrend(metric.trend) }}
+                </div>
               </div>
             </div>
           </el-card>
@@ -25,7 +28,7 @@
 
 <script setup>
 import { ref, watch, onMounted, computed } from 'vue'
-import { QuestionFilled, List } from '@element-plus/icons-vue'
+import { QuestionFilled, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { ga4Client } from '../api/ga4'
 import { runLighthouseTest } from '../api/lighthouse'
@@ -203,6 +206,12 @@ const getTrendClass = (value) => {
   return value > 0 ? 'trend-up' : 'trend-down'
 }
 
+// 获取趋势图标
+const getTrendIcon = (value) => {
+  if (!value) return ''
+  return value > 0 ? 'ArrowUp' : 'ArrowDown'
+}
+
 // 监听日期变化
 watch(
   [() => props.startDate, () => props.endDate],
@@ -285,6 +294,7 @@ onMounted(() => {
   transition: all 0.3s;
   background: var(--card-bg);
   border: 1px solid var(--border-color);
+  overflow: hidden;
 }
 
 .metric-card:hover {
@@ -296,7 +306,7 @@ onMounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  padding: 4px 0;
 }
 
 .metric-header {
@@ -304,6 +314,7 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   color: var(--text-secondary);
+  margin-bottom: 8px;
 }
 
 .metric-title {
@@ -311,18 +322,40 @@ onMounted(() => {
   color: var(--text-secondary);
 }
 
+.metric-body {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 8px;
+}
+
 .metric-value {
   font-size: 24px;
   font-weight: 600;
   color: var(--text-color);
-  margin: 8px 0;
 }
 
 .metric-trend {
   font-size: 13px;
-  padding: 2px 8px;
+  padding: 4px 8px;
   border-radius: 4px;
-  width: fit-content;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 70px;
+  text-align: center;
+  gap: 4px;
+  transition: all 0.3s ease;
+}
+
+.metric-trend .el-icon {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .trend-up {
@@ -330,9 +363,27 @@ onMounted(() => {
   background: var(--success-light);
 }
 
+.trend-up .el-icon {
+  animation: bounce-up 1s ease infinite;
+}
+
 .trend-down {
   color: var(--danger-color);
   background: var(--danger-light);
+}
+
+.trend-down .el-icon {
+  animation: bounce-down 1s ease infinite;
+}
+
+@keyframes bounce-up {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+@keyframes bounce-down {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(2px); }
 }
 
 :deep(.el-card) {

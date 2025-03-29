@@ -1,5 +1,9 @@
 <template>
-  <div class="chart-container" ref="chartRef" v-chart-resize="chart"></div>
+  <div class="chart-container" ref="chartRef" v-chart-resize="chart" :class="{'loading': loading && !chartData.length}">
+    <div v-if="loading && !chartData.length" class="loading-text">
+      数据加载中...
+    </div>
+  </div>
 </template>
 
 <script setup>
@@ -31,9 +35,15 @@ const screenWidth = ref(window.innerWidth)
 
 // 获取趋势数据
 const fetchData = async () => {
-  loading.value = true
+  loading.value = true;
   try {
     console.log('TrendChart fetching data for:', props.startDate, 'to', props.endDate)
+    
+    if (!props.startDate || !props.endDate) {
+      console.warn('日期范围无效，无法获取数据');
+      loading.value = false;
+      return;
+    }
     
     const report = {
       dateRanges: [{ 
@@ -58,12 +68,15 @@ const fetchData = async () => {
     const response = await ga4Client.runReport(report)
     console.log('TrendChart API response:', response)
     chartData.value = response.rows || []
-    updateChart()
+    nextTick(() => {
+      updateChart()
+    })
   } catch (error) {
     console.error('Error fetching trend data:', error)
     ElMessage.error('获取趋势数据失败')
   } finally {
-    loading.value = false
+    // 这里不要设置loading.value = false，让updateChart来处理
+    // 避免在图表渲染前就取消loading状态
   }
 }
 
@@ -89,6 +102,8 @@ const handleResize = () => {
 
 // 添加一个公共方法用于手动触发图表重绘
 const forceResize = () => {
+  if (!chart) return;
+  
   nextTick(() => {
     if (chart) {
       console.log('TrendChart forceResize 被触发')
@@ -98,11 +113,31 @@ const forceResize = () => {
 }
 
 // 监听来自父组件的折叠/展开事件
-window.addEventListener('collapseChange', () => {
-  forceResize()
-})
+const setupEventListeners = () => {
+  window.addEventListener('collapseChange', forceResize)
+  window.addEventListener('resize', handleResize)
+}
+
+const cleanupEventListeners = () => {
+  window.removeEventListener('resize', handleResize)
+  document.removeEventListener('collapseChange', forceResize)
+  
+  if (resizeTimer) {
+    clearTimeout(resizeTimer)
+    resizeTimer = null
+  }
+}
 
 const updateChart = () => {
+  if (!chartRef.value) {
+    console.warn('图表容器不存在')
+    return
+  }
+  
+  if (!chart && chartRef.value) {
+    chart = echarts.init(chartRef.value)
+  }
+  
   if (!chart || !chartData.value.length) {
     console.warn('图表或数据无效')
     return
@@ -319,7 +354,11 @@ const updateChart = () => {
   chart.setOption(option)
   // 确保图表初始化后立即调整大小
   setTimeout(() => {
-    if (chart) chart.resize()
+    if (chart) {
+      chart.resize()
+      // 确保加载状态结束
+      loading.value = false
+    }
   }, 100)
 }
 
@@ -348,11 +387,21 @@ watch(() => chartData.value, () => {
   })
 })
 
-onBeforeMount(() => {
-  initChart()
-  // 确保组件挂载后，监听全局折叠事件
-  document.addEventListener('collapseChange', forceResize)
-  window.addEventListener('resize', handleResize)
+onMounted(() => {
+  nextTick(() => {
+    initChart()
+    // 确保组件挂载后，监听全局折叠事件
+    setupEventListeners()
+    
+    // 如果已有数据则立即更新图表
+    if (chartData.value.length > 0) {
+      updateChart()
+    } else {
+      // 否则获取数据
+      fetchData()
+    }
+    handleResize()
+  })
 })
 
 onBeforeUnmount(() => {
@@ -361,17 +410,7 @@ onBeforeUnmount(() => {
     chart = null
   }
   // 移除全局事件监听
-  window.removeEventListener('resize', handleResize)
-  document.removeEventListener('collapseChange', forceResize)
-  
-  if (resizeTimer) {
-    clearTimeout(resizeTimer)
-    resizeTimer = null
-  }
-})
-
-onMounted(() => {
-  handleResize()
+  cleanupEventListeners()
 })
 </script>
 
@@ -379,6 +418,42 @@ onMounted(() => {
 .chart-container {
   width: 100%;
   height: 400px;
+  position: relative;
+  background-color: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* 移除蒙层，避免交互问题 */
+/* .chart-container::after {
+  content: '';
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.5);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.chart-container.loading::after {
+  display: block;
+} */
+
+.loading-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #666;
+  font-size: 14px;
+  z-index: 2;
+  background-color: rgba(255, 255, 255, 0.7);
+  padding: 8px 16px;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* 移动端适配 */

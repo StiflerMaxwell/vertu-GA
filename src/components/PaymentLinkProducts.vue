@@ -113,9 +113,10 @@ VITE_WOO_CONSUMER_SECRET=your_consumer_secret</pre>
       v-model="editModalVisible" 
       :title="isCreating ? 'Create New Product' : 'Edit Product'"
       width="90%"
-      max-width="600px"
+      :max-width="screenWidth < 768 ? '95%' : '500px'"
       destroy-on-close
       class="product-dialog"
+      top="8vh"
       append-to-body
     >
       <el-form 
@@ -175,57 +176,73 @@ VITE_WOO_CONSUMER_SECRET=your_consumer_secret</pre>
       v-model="detailModalVisible" 
       title="Product Details"
       width="90%"
-      max-width="700px"
+      :max-width="screenWidth < 768 ? '95%' : '600px'"
       class="product-dialog"
+      top="5vh"
       append-to-body
     >
       <div v-if="selectedProduct" class="product-detail">
-        <!-- Product Image -->
-        <div class="product-image">
-          <el-image 
-            v-if="selectedProduct.images && selectedProduct.images.length > 0" 
-            :src="selectedProduct.images[0].src" 
-            :preview-src-list="getImagesList(selectedProduct)"
-            fit="cover"
-            style="width: 100%; max-height: 300px; border-radius: 8px;"
-          >
-            <template #error>
-              <div class="large-image-placeholder">
-                <el-icon><Picture /></el-icon>
-              </div>
-            </template>
-          </el-image>
-          <div v-else class="large-image-placeholder">
-            <el-icon><Picture /></el-icon>
+        <!-- 响应式布局：移动端垂直排列，桌面端水平排列 -->
+        <div class="product-detail-layout">
+          <!-- 产品图片 -->
+          <div class="product-image">
+            <el-image 
+              v-if="selectedProduct.images && selectedProduct.images.length > 0" 
+              :src="selectedProduct.images[0].src" 
+              :preview-src-list="getImagesList(selectedProduct)"
+              fit="contain"
+              style="width: 100%; max-height: 250px; border-radius: 8px;"
+            >
+              <template #error>
+                <div class="large-image-placeholder">
+                  <el-icon><Picture /></el-icon>
+                </div>
+              </template>
+            </el-image>
+            <div v-else class="large-image-placeholder">
+              <el-icon><Picture /></el-icon>
+            </div>
+          </div>
+
+          <!-- 产品信息 -->
+          <div class="product-info">
+            <el-descriptions :column="1" border :size="screenWidth < 480 ? 'small' : 'default'">
+              <el-descriptions-item label="ID">{{ selectedProduct.id }}</el-descriptions-item>
+              <el-descriptions-item label="Name">
+                <span v-html="selectedProduct.name"></span>
+              </el-descriptions-item>
+              <el-descriptions-item label="Price">${{ formatPrice(selectedProduct.price) }}</el-descriptions-item>
+              <el-descriptions-item label="Status">
+                <el-tag :type="getStatusType(selectedProduct.status)">
+                  {{ selectedProduct.status }}
+                </el-tag>
+              </el-descriptions-item>
+              <el-descriptions-item v-if="!isMobile" label="Link">
+                <div class="truncated-link">
+                  <a :href="selectedProduct.permalink" target="_blank" class="external-link">
+                    {{ selectedProduct.permalink }}
+                  </a>
+                </div>
+              </el-descriptions-item>
+              <el-descriptions-item label="Created">
+                {{ formatDate(selectedProduct.date_created) }}
+              </el-descriptions-item>
+              <el-descriptions-item label="Last Updated">
+                {{ formatDate(selectedProduct.date_modified) }}
+              </el-descriptions-item>
+            </el-descriptions>
           </div>
         </div>
 
-        <!-- Product Information -->
-        <div class="product-info">
-          <el-descriptions :column="1" border>
-            <el-descriptions-item label="ID">{{ selectedProduct.id }}</el-descriptions-item>
-            <el-descriptions-item label="Name">
-              <span v-html="selectedProduct.name"></span>
-            </el-descriptions-item>
-            <el-descriptions-item label="Price">${{ formatPrice(selectedProduct.price) }}</el-descriptions-item>
-            <el-descriptions-item label="Status">
-              <el-tag :type="getStatusType(selectedProduct.status)">
-                {{ selectedProduct.status }}
-              </el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="Link">
-              <a :href="selectedProduct.permalink" target="_blank" class="external-link">{{ selectedProduct.permalink }}</a>
-            </el-descriptions-item>
-            <el-descriptions-item label="Created">
-              {{ formatDate(selectedProduct.date_created) }}
-            </el-descriptions-item>
-            <el-descriptions-item label="Last Updated">
-              {{ formatDate(selectedProduct.date_modified) }}
-            </el-descriptions-item>
-          </el-descriptions>
+        <!-- 链接 - 在移动端单独显示 -->
+        <div v-if="isMobile" class="mobile-link-section">
+          <div class="link-label">Link:</div>
+          <a :href="selectedProduct.permalink" target="_blank" class="external-link mobile-link">
+            {{ selectedProduct.permalink }}
+          </a>
         </div>
 
-        <!-- Actions -->
+        <!-- 操作按钮 -->
         <div class="product-actions">
           <el-button type="primary" @click="handleEdit(selectedProduct)">
             <el-icon><Edit /></el-icon> Edit
@@ -308,6 +325,9 @@ const totalPages = computed(() => wooStore.totalPages)
 
 // 响应式设计 - 屏幕宽度
 const screenWidth = ref(window.innerWidth)
+
+// 计算属性 - 判断是否为移动端
+const isMobile = computed(() => screenWidth.value <= 768)
 
 // 监听窗口大小变化
 const handleResize = () => {
@@ -552,11 +572,55 @@ const confirmDelete = (product) => {
   gap: 20px;
 }
 
+.product-detail-layout {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+}
+
+.product-image {
+  flex: 1;
+  max-width: 45%;
+}
+
+.product-info {
+  flex: 1;
+  min-width: 55%;
+}
+
 .product-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  margin-top: 20px;
+  margin-top: 10px;
+}
+
+.truncated-link {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.mobile-link-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background-color: var(--el-fill-color-light);
+  padding: 10px;
+  border-radius: 4px;
+  margin-top: -10px;
+}
+
+.link-label {
+  font-weight: 500;
+  color: var(--el-text-color-primary);
+  font-size: 14px;
+}
+
+.mobile-link {
+  font-size: 12px;
+  word-break: break-all;
 }
 
 .product-name {
@@ -903,21 +967,91 @@ const confirmDelete = (product) => {
     height: 50px;
   }
 }
+
+@media (max-width: 768px) {
+  .product-detail-layout {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .product-image, .product-info {
+    max-width: 100%;
+    width: 100%;
+  }
+  
+  .product-actions {
+    margin-top: 5px;
+    justify-content: center;
+  }
+  
+  .large-image-placeholder {
+    height: 150px;
+    font-size: 24px;
+  }
+  
+  .el-col {
+    width: 100%;
+    margin-bottom: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .product-detail {
+    gap: 12px;
+  }
+  
+  .product-detail-layout {
+    gap: 10px;
+  }
+  
+  .large-image-placeholder {
+    height: 120px;
+    font-size: 20px;
+  }
+  
+  .product-actions {
+    flex-wrap: wrap;
+  }
+  
+  .product-actions .el-button {
+    flex: 1;
+    min-width: 40%;
+    padding: 8px;
+    font-size: 12px;
+  }
+  
+  .product-actions .el-button .el-icon {
+    margin-right: 4px;
+  }
+  
+  .mobile-link-section {
+    padding: 8px;
+  }
+}
 </style>
 
 <style>
 /* 弹窗全局样式 */
 .product-dialog {
   border-radius: 8px;
+  overflow: hidden;
 }
 
 .product-dialog .el-dialog__header {
   border-bottom: 1px solid var(--el-border-color);
-  padding-bottom: 15px;
+  padding: 15px 20px;
+  margin-right: 0;
 }
 
 .product-dialog .el-dialog__body {
-  padding-top: 20px;
+  padding: 20px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.product-dialog .el-dialog__footer {
+  padding: 10px 20px 15px;
+  border-top: 1px solid var(--el-border-color-lighter);
 }
 
 .product-dialog .el-dialog__headerbtn:hover .el-dialog__close {
@@ -928,10 +1062,11 @@ const confirmDelete = (product) => {
 @media (max-width: 768px) {
   .product-dialog .el-dialog__body {
     padding: 15px;
+    max-height: 60vh;
   }
   
   .product-dialog .el-dialog__header {
-    padding: 15px;
+    padding: 12px 15px;
   }
   
   .product-dialog .el-dialog__footer {
@@ -944,6 +1079,46 @@ const confirmDelete = (product) => {
   
   .el-descriptions-row {
     flex-wrap: wrap;
+  }
+  
+  .product-dialog .el-dialog__title {
+    font-size: 16px;
+  }
+  
+  .product-form {
+    padding: 0;
+  }
+  
+  .product-dialog .large-image-placeholder {
+    height: 150px;
+  }
+}
+
+/* 小屏幕弹窗进一步优化 */
+@media (max-width: 480px) {
+  .product-dialog .el-dialog__body {
+    padding: 12px;
+    max-height: 65vh;
+  }
+  
+  .product-dialog .el-dialog__header {
+    padding: 10px 12px;
+  }
+  
+  .product-dialog .el-dialog__title {
+    font-size: 15px;
+  }
+  
+  .product-dialog .el-form-item__label {
+    font-size: 13px;
+  }
+  
+  .product-dialog .product-detail {
+    gap: 10px;
+  }
+  
+  .product-dialog .large-image-placeholder {
+    height: 120px;
   }
 }
 
