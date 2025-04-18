@@ -33,6 +33,14 @@
                 <el-icon><Share /></el-icon>
                 FB看板
               </a>
+
+              <a href="https://gg-ads.vertu.cn/" 
+                 target="_blank" 
+                 class="fb-dashboard-link"
+              >
+                <el-icon><Share /></el-icon>
+                GG看板
+              </a>
             </div>
           </div>
           <div class="dashboard-actions">
