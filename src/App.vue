@@ -268,7 +268,7 @@
             <el-collapse-item :name="'AnalysisForm'" class="section-item AnalysisForm">
                           <template #title>
                             <div class="section-header">
-                              <h2 class="section-title">Livechat聊天分析</h2>
+                              <h2 class="section-title">Livechat聊天分析（无请求15分钟自动休眠，冷启动需1分钟左右）</h2>
                               <div class="section-actions">
                                 <el-tag size="small" type="primary">Livechat</el-tag>
                               </div>
