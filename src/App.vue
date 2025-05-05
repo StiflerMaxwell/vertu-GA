@@ -263,7 +263,24 @@
                 <PaymentLinkProducts />
               </div>
             </el-collapse-item>
+        
+            <!-- AnalysisForm -->
+            <el-collapse-item :name="'AnalysisForm'" class="section-item AnalysisForm">
+                          <template #title>
+                            <div class="section-header">
+                              <h2 class="section-title">Livechat聊天分析</h2>
+                              <div class="section-actions">
+                                <el-tag size="small" type="primary">Livechat</el-tag>
+                              </div>
+                            </div>
+                          </template>
+                          <div class="section-content">
+                            <AnalysisForm /> <!---->
+                          </div>
+              </el-collapse-item>
           </el-collapse>
+
+         
         </template>
       </main>
     </div>
@@ -286,6 +303,7 @@ import GoogleAlerts from './components/GoogleSearchFeed.vue'
 import RealtimeTraffic from './components/RealtimeTraffic.vue'
 import EcommerceAnalysis from './components/EcommerceAnalysis.vue'
 import PaymentLinkProducts from './components/PaymentLinkProducts.vue'
+import AnalysisForm from '@/components/AnalysisForm.vue'; // 使用 @ 别名
 import {
   FullScreen as IconFullScreen,
   Close as IconClose,
