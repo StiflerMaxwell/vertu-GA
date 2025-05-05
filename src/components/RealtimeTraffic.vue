@@ -113,7 +113,7 @@ onMounted(() => {
 
 // 设置定时刷新
 const startAutoRefresh = () => {
-  const refreshInterval = setInterval(fetchData, 30000) // 每30秒刷新一次
+  const refreshInterval = setInterval(fetchData, 60000) // 每60秒刷新一次
   onUnmounted(() => {
     clearInterval(refreshInterval)
   })
