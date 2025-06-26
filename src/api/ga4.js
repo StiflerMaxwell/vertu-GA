@@ -77,7 +77,7 @@ class GA4Client {
           metrics: [
             { name: 'activeUsers' },
             { name: 'screenPageViews' },
-            { name: 'averageSessionDuration' },
+            { name: 'userEngagementDuration' },
             { name: 'bounceRate' }
           ],
           dimensions: [
@@ -219,7 +219,7 @@ export async function fetchTrendData(startDate = '30daysAgo', endDate = 'today')
       metrics: [
         { name: 'activeUsers' },
         { name: 'screenPageViews' },
-        { name: 'averageSessionDuration' },
+        { name: 'userEngagementDuration' },
         { name: 'bounceRate' }
       ],
       dimensions: [
@@ -340,7 +340,7 @@ export async function fetchRealtimeMetrics() {
       metrics: [
         { name: 'activeUsers' },
         { name: 'screenPageViews' },
-        { name: 'averageSessionDuration' },
+        { name: 'userEngagementDuration' },
         { name: 'bounceRate' }
       ],
       minuteRanges: [

@@ -77,7 +77,7 @@ const metrics = ref([
     value: 0,
     trend: 0,
     tooltip: '访客平均停留时间',
-    metricName: 'averageSessionDuration'
+    metricName: 'userEngagementDuration'
   }
 ])
 

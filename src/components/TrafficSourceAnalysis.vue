@@ -354,7 +354,7 @@ const getSourceOrderByField = (prop) => {
     case 'bounceRate':
       return { metric: { metricName: 'bounceRate' } }
     case 'avgDuration':
-      return { metric: { metricName: 'averageSessionDuration' } }
+      return { metric: { metricName: 'userEngagementDuration' } }
     case 'source':
       return { dimension: { dimensionName: 'firstUserSource' } }
     case 'medium':
@@ -395,7 +395,7 @@ async function fetchData() {
         { name: 'sessions' },                // 会话数
         { name: 'activeUsers' },             // 活跃用户数（访客数）
         { name: 'bounceRate' },              // 跳出率
-        { name: 'averageSessionDuration' },  // 平均会话时长
+        { name: 'userEngagementDuration' },  // 用户参与时长
         { name: 'addToCarts' },              // 加购数
         { name: 'checkouts' }                // 结账数
       ]
@@ -451,7 +451,7 @@ async function fetchData() {
         { name: 'sessions' },
         { name: 'activeUsers' },
         { name: 'bounceRate' },
-        { name: 'averageSessionDuration' },
+        { name: 'userEngagementDuration' },
         { name: 'addToCarts' },
         { name: 'checkouts' }
       ]
@@ -801,7 +801,7 @@ const getPageOrderByField = (prop) => {
     case 'bounceRate':
       return { metric: { metricName: 'bounceRate' } }
     case 'avgTimeOnPage':
-      return { metric: { metricName: 'averageSessionDuration' } }
+      return { metric: { metricName: 'userEngagementDuration' } }
     case 'pagePath':
       return { dimension: { dimensionName: 'pagePath' } }
     case 'pageTitle':
@@ -834,7 +834,7 @@ async function fetchPageData() {
         { name: 'screenPageViews' },
         { name: 'totalUsers' },
         { name: 'bounceRate' },
-        { name: 'averageSessionDuration' }
+        { name: 'userEngagementDuration' }
       ]
     }
 

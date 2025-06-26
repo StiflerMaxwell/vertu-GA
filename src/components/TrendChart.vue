@@ -54,7 +54,7 @@ const fetchData = async () => {
       metrics: [
         { name: 'activeUsers' },
         { name: 'screenPageViews' },
-        { name: 'averageSessionDuration' },
+        { name: 'userEngagementDuration' },
         { name: 'bounceRate' }
       ],
       orderBys: [

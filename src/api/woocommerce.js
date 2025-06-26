@@ -106,3 +106,80 @@ export const getCategories = async () => {
     throw error
   }
 } 
+
+// Get orders with filters
+export const getOrders = async (params = {}) => {
+  try {
+    const defaultParams = {
+      per_page: 100,
+      orderby: 'date',
+      order: 'desc',
+      ...params
+    }
+    
+    const response = await wooApi.get('/orders', { params: defaultParams })
+    return {
+      orders: response.data,
+      totalItems: parseInt(response.headers['x-wp-total'] || 0),
+      totalPages: parseInt(response.headers['x-wp-totalpages'] || 0)
+    }
+  } catch (error) {
+    throw error
+  }
+}
+
+// Get order analytics (orders within date range)
+export const getOrderAnalytics = async (startDate, endDate) => {
+  try {
+    const response = await wooApi.get('/orders', {
+      params: {
+        after: startDate + 'T00:00:00',
+        before: endDate + 'T23:59:59',
+        per_page: 100,
+        status: 'any'
+      }
+    })
+    
+    const orders = response.data
+    const totalOrders = orders.length
+    const completedOrders = orders.filter(order => order.status === 'completed')
+    const processingOrders = orders.filter(order => order.status === 'processing')
+    const pendingOrders = orders.filter(order => order.status === 'pending')
+    const cancelledOrders = orders.filter(order => order.status === 'cancelled')
+    
+    const totalRevenue = completedOrders.reduce((sum, order) => sum + parseFloat(order.total), 0)
+    const avgOrderValue = completedOrders.length > 0 ? totalRevenue / completedOrders.length : 0
+    
+    return {
+      totalOrders,
+      completedOrders: completedOrders.length,
+      processingOrders: processingOrders.length,
+      pendingOrders: pendingOrders.length,
+      cancelledOrders: cancelledOrders.length,
+      totalRevenue,
+      avgOrderValue,
+      abandonedCartRate: cancelledOrders.length / totalOrders * 100,
+      orders: orders
+    }
+  } catch (error) {
+    throw error
+  }
+}
+
+// Get abandoned cart data (pending/failed orders)
+export const getAbandonedCarts = async (startDate, endDate) => {
+  try {
+    const response = await wooApi.get('/orders', {
+      params: {
+        after: startDate + 'T00:00:00',
+        before: endDate + 'T23:59:59',
+        status: ['pending', 'failed', 'cancelled'],
+        per_page: 100
+      }
+    })
+    
+    return response.data
+  } catch (error) {
+    throw error
+  }
+} 

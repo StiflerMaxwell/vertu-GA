@@ -264,6 +264,40 @@
               </div>
             </el-collapse-item>
         
+            <!-- Microsoft Clarity 用户行为分析 -->
+            <el-collapse-item :name="'clarity'" class="section-item clarity">
+              <template #title>
+                <div class="section-header">
+                  <h2 class="section-title">Microsoft Clarity 用户行为分析</h2>
+                  <div class="section-actions">
+                    <el-tag size="small" type="warning">Clarity</el-tag>
+                  </div>
+                </div>
+              </template>
+              <div class="section-content">
+                <ClarityAnalysis />
+              </div>
+            </el-collapse-item>
+
+            <!-- AI数据洞察与行动建议 -->
+            <el-collapse-item :name="'ai-insights'" class="section-item ai-insights">
+              <template #title>
+                <div class="section-header">
+                  <h2 class="section-title">🤖 AI数据洞察与行动建议</h2>
+                  <div class="section-actions">
+                    <el-tag size="small" type="primary">Gemini AI</el-tag>
+                  </div>
+                </div>
+              </template>
+              <div class="section-content">
+                <DataInsights 
+                  :start-date="startDate"
+                  :end-date="endDate"
+                  :key="dateKey"
+                />
+              </div>
+            </el-collapse-item>
+
             <!-- AnalysisForm -->
             <el-collapse-item :name="'AnalysisForm'" class="section-item AnalysisForm">
                           <template #title>
@@ -304,6 +338,8 @@ import RealtimeTraffic from './components/RealtimeTraffic.vue'
 import EcommerceAnalysis from './components/EcommerceAnalysis.vue'
 import PaymentLinkProducts from './components/PaymentLinkProducts.vue'
 import AnalysisForm from '@/components/AnalysisForm.vue'; // 使用 @ 别名
+import ClarityAnalysis from './components/ClarityAnalysis.vue'
+import DataInsights from './components/DataInsights.vue'
 import {
   FullScreen as IconFullScreen,
   Close as IconClose,
@@ -543,7 +579,9 @@ const sectionNames = [
   'free-traffic',
   'alerts',
   'performance',
-  'payment-links'
+  'payment-links',
+  'clarity',
+  'ai-insights'
 ]
 
 // 添加 activeSections 存储当前展开的区块
