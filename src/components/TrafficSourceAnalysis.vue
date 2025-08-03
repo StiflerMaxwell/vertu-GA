@@ -291,6 +291,7 @@ import { Search, Share, Link, Position } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { ga4Client } from '../api/ga4'
 import { useDebounceFn } from '@vueuse/core'
+import { formatDurationFromMilliseconds, formatAverageEngagementTime, formatDuration as formatDurationUtil } from '../utils/durationUtils'
 
 const props = defineProps({
   startDate: {
@@ -395,7 +396,7 @@ async function fetchData() {
         { name: 'sessions' },                // 会话数
         { name: 'activeUsers' },             // 活跃用户数（访客数）
         { name: 'bounceRate' },              // 跳出率
-        { name: 'userEngagementDuration' },  // 用户参与时长
+        { name: 'averageSessionDuration' },  // 平均会话时长（秒）
         { name: 'addToCarts' },              // 加购数
         { name: 'checkouts' }                // 结账数
       ]
@@ -451,7 +452,7 @@ async function fetchData() {
         { name: 'sessions' },
         { name: 'activeUsers' },
         { name: 'bounceRate' },
-        { name: 'userEngagementDuration' },
+        { name: 'userEngagementDuration' }, // 用户参与时长（总时长）
         { name: 'addToCarts' },
         { name: 'checkouts' }
       ]
@@ -503,54 +504,56 @@ async function fetchData() {
       }
     }
 
-    // 添加分页和排序的请求
-    const pageRequest = {
-      ...baseRequest,
-      limit: pageSize.value,
-      offset: (currentPage.value - 1) * pageSize.value,
-      orderBys: [{
-        ...getSourceOrderByField(sourceCurrentSort.value.prop),
-        desc: sourceCurrentSort.value.order === 'descending'
-      }]
-    }
-
-    // 获取分页数据和总计数据
     const [pageResponse, totalsResponse] = await Promise.all([
-      ga4Client.runReport(pageRequest),
-      ga4Client.runReport(totalsRequest)
+      ga4Client.runReport({
+        ...baseRequest,
+        limit: pageSize.value,
+        offset: (currentPage.value - 1) * pageSize.value,
+        orderBys: [{
+          ...getSourceOrderByField(sourceCurrentSort.value.prop),
+          desc: sourceCurrentSort.value.order === 'descending'
+        }]
+      }),
+      ga4Client.runReport(totalsRequest) // 总计请求
     ])
 
-    // 设置总计数据
-    if (searchKeyword.value && totalsResponse?.rows?.length) {
-      // 有筛选条件，需要汇总所有行
-      const totalVisits = totalsResponse.rows.reduce((sum, row) => sum + (parseInt(row.metricValues[0].value) || 0), 0);
-      const totalUsers = totalsResponse.rows.reduce((sum, row) => sum + (parseInt(row.metricValues[1].value) || 0), 0);
-      
+    // 处理总计数据
+    if (totalsResponse?.rows?.length) {
+      const totalVisits = totalsResponse.rows.reduce((sum, row) => sum + (parseInt(row.metricValues[0].value) || 0), 0)
+      const totalUsers = totalsResponse.rows.reduce((sum, row) => sum + (parseInt(row.metricValues[1].value) || 0), 0)
+
       totals.value = {
         visits: totalVisits,
         users: totalUsers,
         // 加权平均跳出率
         bounceRate: totalsResponse.rows.reduce((sum, row) => {
-          const visits = parseInt(row.metricValues[0].value) || 0;
+          const sessions = parseInt(row.metricValues[0].value) || 0;
           const rate = parseFloat(row.metricValues[2].value) || 0;
-          return sum + (rate * visits);
+          return sum + (rate * sessions);
         }, 0) / (totalVisits || 1),
-        // 加权平均会话时长
-        avgDuration: totalsResponse.rows.reduce((sum, row) => {
-          const visits = parseInt(row.metricValues[0].value) || 0;
-          const duration = parseFloat(row.metricValues[3].value) || 0;
-          return sum + (duration * visits);
-        }, 0) / (totalVisits || 1),
+        // 加权平均会话时长 - averageSessionDuration 已经是秒，按会话数加权
+        avgDuration: (() => {
+          const weightedDuration = totalsResponse.rows.reduce((sum, row) => {
+            const sessions = parseInt(row.metricValues[0].value) || 0;
+            const avgDuration = parseFloat(row.metricValues[3].value) || 0; // averageSessionDuration 已经是秒
+            return sum + (avgDuration * sessions);
+          }, 0);
+          const totalSessions = totalsResponse.rows.reduce((sum, row) => {
+            return sum + (parseInt(row.metricValues[0].value) || 0); // 累加总会话数
+          }, 0);
+          return weightedDuration / (totalSessions || 1); // 加权平均
+        })(),
         addToCarts: totalsResponse.rows.reduce((sum, row) => sum + (parseInt(row.metricValues[4].value) || 0), 0),
         checkouts: totalsResponse.rows.reduce((sum, row) => sum + (parseInt(row.metricValues[5].value) || 0), 0)
       }
     } else if (totalsResponse?.rows?.length) {
       // 无筛选条件，使用第一行数据
+      // 注意：这里的索引需要根据新的 metrics 顺序调整
       totals.value = {
         visits: parseInt(totalsResponse.rows[0].metricValues[0].value) || 0,
         users: parseInt(totalsResponse.rows[0].metricValues[1].value) || 0,
         bounceRate: parseFloat(totalsResponse.rows[0].metricValues[2].value) || 0,
-        avgDuration: parseFloat(totalsResponse.rows[0].metricValues[3].value) || 0,
+        avgDuration: parseFloat(totalsResponse.rows[0].metricValues[3].value) || 0, // averageSessionDuration 已经是秒
         addToCarts: parseInt(totalsResponse.rows[0].metricValues[4].value) || 0,
         checkouts: parseInt(totalsResponse.rows[0].metricValues[5].value) || 0
       }
@@ -558,21 +561,30 @@ async function fetchData() {
 
     console.log('Totals Response:', totalsResponse)
     console.log('Totals Data:', totals.value)
+    console.log('Page Response:', pageResponse)
+    console.log('Page Response Rows:', pageResponse?.rows)
 
     // 处理分页数据
     if (pageResponse?.rows?.length) {
-      sourceData.value = pageResponse.rows.map(row => ({
-        type: getSourceType(row.dimensionValues[0].value),
-        source: row.dimensionValues[0].value,
-        medium: row.dimensionValues[1].value,
-        campaign: row.dimensionValues[2].value === '(not set)' ? '-' : row.dimensionValues[2].value,
-        visits: parseInt(row.metricValues[0].value),
-        users: parseInt(row.metricValues[1].value),
-        bounceRate: parseFloat(row.metricValues[2].value),
-        avgDuration: parseFloat(row.metricValues[3].value),
-        addToCarts: parseInt(row.metricValues[4].value),  // 加购数
-        checkouts: parseInt(row.metricValues[5].value)    // 结账数
-      }))
+      sourceData.value = pageResponse.rows.map(row => {
+        const avgDuration = parseFloat(row.metricValues[3].value) || 0; // averageSessionDuration 已经是秒
+        
+        // 调试信息
+        console.log(`Source: ${row.dimensionValues[0].value}, AvgDuration: ${avgDuration}`);
+        
+        return {
+          type: getSourceType(row.dimensionValues[0].value),
+          source: row.dimensionValues[0].value,
+          medium: row.dimensionValues[1].value,
+          campaign: row.dimensionValues[2].value === '(not set)' ? '-' : row.dimensionValues[2].value,
+          visits: parseInt(row.metricValues[0].value),
+          users: parseInt(row.metricValues[1].value),
+          bounceRate: parseFloat(row.metricValues[2].value),
+          avgDuration: avgDuration, // averageSessionDuration 已经是秒
+          addToCarts: parseInt(row.metricValues[4].value),  // 加购数
+          checkouts: parseInt(row.metricValues[5].value)    // 结账数
+        };
+      })
     } else {
       sourceData.value = []
     }
@@ -673,12 +685,9 @@ const formatPercent = (value) => {
   return `${(value * 100).toFixed(1)}%`
 }
 
-// 格式化时长
+// 格式化时长（使用统一的工具函数）
 const formatDuration = (seconds) => {
-  if (!seconds && seconds !== 0) return '0秒'
-  const minutes = Math.floor(seconds / 60)
-  if (minutes < 1) return `${Math.round(seconds)}秒`
-  return `${minutes}分${Math.round(seconds % 60)}秒`
+  return formatDurationUtil(seconds)
 }
 
 // 获取趋势样式
@@ -801,7 +810,7 @@ const getPageOrderByField = (prop) => {
     case 'bounceRate':
       return { metric: { metricName: 'bounceRate' } }
     case 'avgTimeOnPage':
-      return { metric: { metricName: 'userEngagementDuration' } }
+      return { metric: { metricName: 'avgTimeOnPage' } }
     case 'pagePath':
       return { dimension: { dimensionName: 'pagePath' } }
     case 'pageTitle':
@@ -834,7 +843,7 @@ async function fetchPageData() {
         { name: 'screenPageViews' },
         { name: 'totalUsers' },
         { name: 'bounceRate' },
-        { name: 'userEngagementDuration' }
+        { name: 'averageSessionDuration' }  // 平均会话时长（秒）
       ]
     }
 
@@ -881,7 +890,7 @@ async function fetchPageData() {
         pageviews: parseInt(row.metricValues[0].value),
         uniquePageviews: parseInt(row.metricValues[1].value),
         bounceRate: parseFloat(row.metricValues[2].value),
-        avgTimeOnPage: parseFloat(row.metricValues[3].value)
+        avgTimeOnPage: parseFloat(row.metricValues[3].value) || 0 // averageSessionDuration 已经是秒
       }))
     } else {
       pageData.value = []
@@ -891,7 +900,7 @@ async function fetchPageData() {
     if (totalResponse?.rows?.length) {
       const totalPageviews = totalResponse.rows.reduce((sum, row) => 
         sum + parseInt(row.metricValues[0].value), 0)
-      const totalUniquePageviews = totalResponse.rows.reduce((sum, row) => 
+      const totalUsers = totalResponse.rows.reduce((sum, row) => 
         sum + parseInt(row.metricValues[1].value), 0)
       
       // 计算加权平均
@@ -899,15 +908,17 @@ async function fetchPageData() {
         const views = parseInt(row.metricValues[0].value)
         return sum + parseFloat(row.metricValues[2].value) * views
       }, 0) / totalPageviews
-
+      
+      // 计算加权平均时长 - averageSessionDuration 已经是秒，需要按页面浏览量加权
       const weightedTimeOnPage = totalResponse.rows.reduce((sum, row) => {
         const views = parseInt(row.metricValues[0].value)
-        return sum + parseFloat(row.metricValues[3].value) * views
-      }, 0) / totalPageviews
+        const avgDuration = parseFloat(row.metricValues[3].value) || 0
+        return sum + avgDuration * views // 按页面浏览量加权
+      }, 0) / (totalPageviews || 1) // 除以总页面浏览量
 
       pageTotals.value = {
         pageviews: totalPageviews,
-        uniquePageviews: totalUniquePageviews,
+        uniquePageviews: totalUsers, // uniquePageviews 实际上是 totalUsers
         bounceRate: weightedBounceRate,
         avgTimeOnPage: weightedTimeOnPage
       }

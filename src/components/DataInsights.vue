@@ -251,6 +251,7 @@ import { getOrderAnalytics } from '@/api/woocommerce'
 import { fetchSearchData } from '@/api/gsc'
 import { Refresh } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { formatDuration, validateDuration } from '@/utils/durationUtils'
 
 const props = defineProps({
   startDate: { type: String, required: true },
@@ -807,8 +808,7 @@ const loadGA4Data = async () => {
         { name: 'bounceRate' },
         { name: 'screenPageViews' },
         { name: 'userEngagementDuration' },      // 用户活跃参与时长
-        { name: 'engagedSessions' },             // 有效会话数
-        { name: 'averageEngagementTime' }        // 平均参与时间（更接近传统停留时长）
+        { name: 'engagedSessions' }              // 有效会话数
       ]
     })
 
@@ -817,9 +817,9 @@ const loadGA4Data = async () => {
       dateRanges: [{ startDate: props.startDate, endDate: props.endDate }],
       dimensions: [{ name: 'pagePath' }],
       metrics: [
-        { name: 'screenPageViews' },
-        { name: 'userEngagementDuration' },
-        { name: 'bounceRate' }
+        { name: 'screenPageViews' },        // index 0 - 页面浏览量
+        { name: 'userEngagementDuration' }, // index 1 - 用户参与时长（原生GA4指标）
+        { name: 'bounceRate' }              // index 2 - 跳出率
       ],
       orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }],
       limit: 10
@@ -859,7 +859,9 @@ const loadGA4Data = async () => {
       pageViews: parseInt(basicMetrics?.rows?.[0]?.metricValues?.[3]?.value || 0),
       userEngagementDuration: parseInt(basicMetrics?.rows?.[0]?.metricValues?.[4]?.value || 0),
       engagedSessions: parseInt(basicMetrics?.rows?.[0]?.metricValues?.[5]?.value || 0),
-      avgEngagementTime: parseFloat(basicMetrics?.rows?.[0]?.metricValues?.[6]?.value || 0), // 这个更接近传统停留时长
+      // 计算每位活跃用户的平均参与时长：userEngagementDuration(毫秒) / activeUsers，然后转换为秒
+      avgEngagementTime: (parseInt(basicMetrics?.rows?.[0]?.metricValues?.[0]?.value || 0) > 0) ? 
+        ((parseInt(basicMetrics?.rows?.[0]?.metricValues?.[4]?.value || 0) / 1000) / parseInt(basicMetrics?.rows?.[0]?.metricValues?.[0]?.value || 1)) : 0,
       addToCartEvents: parseInt(ecommerceMetrics?.rows?.[0]?.metricValues?.[0]?.value || 0),
       checkoutEvents: parseInt(ecommerceMetrics?.rows?.[0]?.metricValues?.[1]?.value || 0),
       purchaseEvents: parseInt(ecommerceMetrics?.rows?.[0]?.metricValues?.[2]?.value || 0),
@@ -868,8 +870,8 @@ const loadGA4Data = async () => {
       topPages: pageEngagementMetrics?.rows?.map(row => ({
         page: row.dimensionValues[0].value,
         pageViews: parseInt(row.metricValues[0].value || 0),
-        avgTimeOnPage: parseInt(row.metricValues[1].value || 0), // 页面停留时长
-        bounceRate: parseFloat(row.metricValues[2].value || 0) * 100
+                  avgTimeOnPage: (parseFloat(row.metricValues[1].value || 0)) / 1000, // 将毫秒转换为秒
+        bounceRate: parseFloat(row.metricValues[2].value || 0) * 100 // 跳出率
       })) || []
     }
   } catch (error) {

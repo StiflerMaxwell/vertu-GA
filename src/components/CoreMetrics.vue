@@ -33,6 +33,7 @@ import { ElMessage } from 'element-plus'
 import { ga4Client } from '../api/ga4'
 import { runLighthouseTest } from '../api/lighthouse'
 import { getLighthouseHistory, saveLighthouseResult } from '../api/lighthouseHistory'
+import { formatDuration, formatDurationMini, getDurationMetricConfig, validateDuration } from '../utils/durationUtils'
 
 const props = defineProps({
   startDate: {
@@ -77,7 +78,7 @@ const metrics = ref([
     value: 0,
     trend: 0,
     tooltip: '访客平均停留时间',
-    metricName: 'userEngagementDuration'
+    metricName: 'averageSessionDuration'
   }
 ])
 
@@ -140,28 +141,39 @@ const fetchData = async () => {
           startDate: props.startDate, 
           endDate: props.endDate 
         }],
-        metrics: metrics.value.map(m => ({ name: m.metricName }))
+        metrics: [
+          { name: 'screenPageViews' },
+          { name: 'activeUsers' },
+          { name: 'bounceRate' },
+          { name: 'averageSessionDuration' } // 平均会话时长（秒）
+        ]
       }),
       ga4Client.runReport({
-        dateRanges: [{ 
-          startDate: formatDate(previousStartDate), 
-          endDate: formatDate(previousEndDate) 
+        dateRanges: [{
+          startDate: formatDate(previousStartDate),
+          endDate: formatDate(previousEndDate)
         }],
-        metrics: metrics.value.map(m => ({ name: m.metricName }))
+        metrics: [
+          { name: 'screenPageViews' },
+          { name: 'activeUsers' },
+          { name: 'bounceRate' },
+          { name: 'averageSessionDuration' } // 平均会话时长（秒）
+        ]
       })
     ])
 
     console.log('CoreMetrics API responses:', { current: currentResponse, previous: previousResponse })
 
     // 处理数据
-    const current = currentResponse.rows[0]
-    const previous = previousResponse.rows[0]
+    const currentData = currentResponse.rows[0].metricValues.map(m => parseFloat(m.value))
+    const previousData = previousResponse.rows[0].metricValues.map(m => parseFloat(m.value))
 
-    // 更新指标数据
+    // 更新指标数据 - averageSessionDuration 已经是计算好的平均值（秒）
     metrics.value = metrics.value.map((metric, index) => {
-      const currentValue = parseFloat(current.metricValues[index].value)
-      const previousValue = parseFloat(previous.metricValues[index].value)
-      const trend = previousValue ? ((currentValue - previousValue) / previousValue) * 100 : 0
+      const currentValue = currentData[index]
+      const previousValue = previousData[index]
+      
+      const trend = previousValue !== 0 ? ((currentValue - previousValue) / previousValue) * 100 : 0
 
       return {
         ...metric,
@@ -186,9 +198,18 @@ const formatValue = (value, type) => {
     return `${(value * 100).toFixed(1)}%`
   }
   if (type === 'duration') {
-    const minutes = Math.floor(value / 60)
-    const seconds = Math.floor(value % 60)
-    return `${minutes}分${seconds}秒`
+    // 验证时长数据
+    const validation = validateDuration(value)
+    if (!validation.isValid) {
+      console.warn('CoreMetrics - 时长数据异常:', validation.message)
+      return '数据异常'
+    }
+    
+    if (validation.isAbnormal) {
+      console.warn('CoreMetrics - 时长数据可疑:', validation.message)
+    }
+    
+    return formatDurationMini(value)
   }
   if (!value && value !== 0) return '-'
   return value.toString()

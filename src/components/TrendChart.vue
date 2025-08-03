@@ -12,6 +12,7 @@ import * as echarts from 'echarts'
 import { ga4Client } from '../api/ga4'
 import { ElMessage } from 'element-plus'
 import { computed } from 'vue'
+import { formatDurationToMinutes, getDurationMetricConfig } from '../utils/durationUtils'
 
 const props = defineProps({
   startDate: {
@@ -54,7 +55,8 @@ const fetchData = async () => {
       metrics: [
         { name: 'activeUsers' },
         { name: 'screenPageViews' },
-        { name: 'userEngagementDuration' },
+        getDurationMetricConfig('session'), // 使用标准化的时长指标 (userEngagementDuration)
+        { name: 'sessions' }, // 同时请求 sessions
         { name: 'bounceRate' }
       ],
       orderBys: [
@@ -67,7 +69,15 @@ const fetchData = async () => {
 
     const response = await ga4Client.runReport(report)
     console.log('TrendChart API response:', response)
-    chartData.value = response.rows || []
+    // 将原始数据存储，然后计算平均会话时长
+    chartData.value = response.rows ? response.rows.map(row => ({
+      date: row.dimensionValues[0].value,
+      activeUsers: Number(row.metricValues[0].value),
+      screenPageViews: Number(row.metricValues[1].value),
+      userEngagementDuration: Number(row.metricValues[2].value),
+      sessions: Number(row.metricValues[3].value), // 获取 sessions
+      bounceRate: Number(row.metricValues[4].value)
+    })) : []
     nextTick(() => {
       updateChart()
     })
@@ -145,7 +155,7 @@ const updateChart = () => {
 
   // 处理数据
   const dates = chartData.value.map(item => {
-    const date = item.dimensionValues[0].value
+    const date = item.date
     // 转换日期格式为 MM/DD
     return `${date.substring(4, 6)}/${date.substring(6, 8)}`
   })
@@ -290,7 +300,7 @@ const updateChart = () => {
     series: [
       {
         name: '活跃用户',
-        data: chartData.value.map(item => Number(item.metricValues[0].value)),
+        data: chartData.value.map(item => item.activeUsers),
         type: 'line',
         smooth: true,
         yAxisIndex: 0,
@@ -305,7 +315,7 @@ const updateChart = () => {
       },
       {
         name: '页面浏览量',
-        data: chartData.value.map(item => Number(item.metricValues[1].value)),
+        data: chartData.value.map(item => item.screenPageViews),
         type: 'line',
         smooth: true,
         yAxisIndex: 0,
@@ -320,7 +330,9 @@ const updateChart = () => {
       },
       {
         name: '平均会话时长(分钟)',
-        data: chartData.value.map(item => Number(item.metricValues[2].value) / 60),
+        data: chartData.value.map(item => 
+          item.sessions > 0 ? formatDurationToMinutes(item.userEngagementDuration / item.sessions) : 0
+        ),
         type: 'line',
         smooth: true,
         yAxisIndex: 1,
@@ -335,7 +347,7 @@ const updateChart = () => {
       },
       {
         name: '跳出率(%)',
-        data: chartData.value.map(item => Number(item.metricValues[3].value) * 100),
+        data: chartData.value.map(item => item.bounceRate),
         type: 'line',
         smooth: true,
         yAxisIndex: 2,

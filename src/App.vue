@@ -265,7 +265,7 @@
             </el-collapse-item>
         
             <!-- Microsoft Clarity 用户行为分析 -->
-            <el-collapse-item :name="'clarity'" class="section-item clarity">
+            <!-- <el-collapse-item :name="'clarity'" class="section-item clarity">
               <template #title>
                 <div class="section-header">
                   <h2 class="section-title">Microsoft Clarity 用户行为分析</h2>
@@ -277,10 +277,10 @@
               <div class="section-content">
                 <ClarityAnalysis />
               </div>
-            </el-collapse-item>
+            </el-collapse-item> -->
 
             <!-- AI数据洞察与行动建议 -->
-            <el-collapse-item :name="'ai-insights'" class="section-item ai-insights">
+            <!-- <el-collapse-item :name="'ai-insights'" class="section-item ai-insights">
               <template #title>
                 <div class="section-header">
                   <h2 class="section-title">🤖 AI数据洞察与行动建议</h2>
@@ -296,7 +296,7 @@
                   :key="dateKey"
                 />
               </div>
-            </el-collapse-item>
+            </el-collapse-item> -->
 
             <!-- AnalysisForm -->
             <el-collapse-item :name="'AnalysisForm'" class="section-item AnalysisForm">
@@ -340,6 +340,7 @@ import PaymentLinkProducts from './components/PaymentLinkProducts.vue'
 import AnalysisForm from '@/components/AnalysisForm.vue'; // 使用 @ 别名
 import ClarityAnalysis from './components/ClarityAnalysis.vue'
 import DataInsights from './components/DataInsights.vue'
+import { formatDuration as formatDurationUtil } from './utils/durationUtils'
 import {
   FullScreen as IconFullScreen,
   Close as IconClose,
@@ -705,10 +706,10 @@ function updateDashboard(data) {
       },
       {
         title: '平均访问时长',
-        value: formatDuration(latestData.metricValues[2].value),
+        value: formatDuration(latestData.sessions > 0 ? latestData.userEngagementDuration / latestData.sessions : 0),
         trend: calculateGrowth(
-          latestData.metricValues[2].value,
-          previousData?.metricValues[2].value
+          latestData.sessions > 0 ? latestData.userEngagementDuration / latestData.sessions : 0,
+          previousData?.sessions > 0 ? previousData.userEngagementDuration / previousData.sessions : 0
         ),
         description: '过去24小时内的平均访问时长'
       },
@@ -734,10 +735,9 @@ function updateDashboard(data) {
       weekAgoData.metricValues[3].value
     )
 
-    const avgDurationChange = calculateGrowth(
-      latestData.metricValues[2].value,
-      weekAgoData.metricValues[2].value
-    )
+    const currentAvgDuration = latestData.sessions > 0 ? latestData.userEngagementDuration / latestData.sessions : 0
+    const weekAgoAvgDuration = weekAgoData.sessions > 0 ? weekAgoData.userEngagementDuration / weekAgoData.sessions : 0
+    const avgDurationChange = calculateGrowth(currentAvgDuration, weekAgoAvgDuration)
 
     // 更新深度分析洞察
     insights.value = [
@@ -783,7 +783,7 @@ function updateDashboard(data) {
       },
       {
         name: '平均访问时长',
-        value: formatDuration(latestData.metricValues[2].value),
+        value: formatDuration(latestData.sessions > 0 ? latestData.userEngagementDuration / latestData.sessions : 0),
         icon: IconTimer,
         trend: avgDurationChange
       },
@@ -835,24 +835,15 @@ function formatPercentage(value) {
 }
 
 function formatDuration(seconds) {
-  const totalSeconds = Math.floor(Number(seconds));
-  const minutes = Math.floor(totalSeconds / 60);
-  const hours = Math.floor(minutes / 60);
-  
-  if (hours > 0) {
-    const remainingMinutes = minutes % 60;
-    return `${hours}小时${remainingMinutes}分`;
-  } else {
-    const remainingSeconds = totalSeconds % 60;
-    return `${minutes}分${remainingSeconds}秒`;
-  }
+  // 使用统一的时长格式化工具函数
+  return formatDurationUtil(seconds)
 }
 
 function setDefaultValues() {
   dataCards.value = [
     { title: '实时用户', value: '0', trend: 0 },
     { title: '页面浏览', value: '0', trend: 0 },
-    { title: '平均访问时长', value: '0分钟', trend: 0 },
+    { title: '平均访问时长', value: '0秒', trend: 0 },
     { title: '跳出率', value: '0%', trend: 0 }
   ];
   userTrendData.value = [];
@@ -981,13 +972,15 @@ const trendInsights = computed(() => {
     type: viewChange > 0 ? 'positive' : 'negative'
   })
 
-  // 平均会话时长变化
-  const durationChange = (latest.metricValues[2].value - previous.metricValues[2].value) / previous.metricValues[2].value * 100
-  insights.push({
-    title: '平均会话时长变化',
-    content: `相比前一天${durationChange > 0 ? '增长' : '下降'}了 ${Math.abs(durationChange).toFixed(2)}%`,
-    type: durationChange > 0 ? 'positive' : 'negative'
-  })
+      // 平均会话时长变化
+    const latestAvgDuration = latest.sessions > 0 ? latest.userEngagementDuration / latest.sessions : 0
+    const previousAvgDuration = previous.sessions > 0 ? previous.userEngagementDuration / previous.sessions : 0
+    const durationChange = previousAvgDuration !== 0 ? ((latestAvgDuration - previousAvgDuration) / previousAvgDuration) * 100 : 0
+    insights.push({
+      title: '平均会话时长变化',
+      content: `相比前一天${durationChange > 0 ? '增长' : '下降'}了 ${Math.abs(durationChange).toFixed(2)}%`,
+      type: durationChange > 0 ? 'positive' : 'negative'
+    })
 
   // 跳出率变化
   const bounceChange = (latest.metricValues[3].value - previous.metricValues[3].value) / previous.metricValues[3].value * 100

@@ -13,6 +13,7 @@
     "@google/generative-ai": "^0.24.1",
     "@googlemaps/js-api-loader": "^1.16.8",
     "@googlemaps/markerclusterer": "^2.5.3",
+    "@playwright/test": "^1.54.2",
     "@types/echarts": "^4.9.22",
     "axios": "^1.7.9",
     "date-fns": "^4.1.0",
