@@ -459,5 +459,155 @@ avgEngagementTime: ((userEngagementDuration / 1000) / activeUsers)
 ---
 **GA4毫秒单位转换问题完全解决** ✅
 
+## 🔄 访问来源分析平均访问时长计算方式修改
+
+### 修改时间
+2024年12月19日
+
+### 修改需求
+用户要求将访问来源分析的总计平均访问时长的计算方式改为与页面分析的平均停留时长一样。
+
+### 原始计算方式对比
+
+#### 页面分析的计算方式
+```javascript
+// 按页面浏览量加权计算平均停留时长
+const weightedTimeOnPage = totalResponse.rows.reduce((sum, row) => {
+  const views = parseInt(row.metricValues[0].value)
+  const avgDuration = parseFloat(row.metricValues[3].value) || 0
+  return sum + avgDuration * views // 按页面浏览量加权
+}, 0) / (totalPageviews || 1) // 除以总页面浏览量
+```
+
+#### 访问来源分析原计算方式
+```javascript
+// 按会话数加权计算平均访问时长
+const weightedDuration = totalsResponse.rows.reduce((sum, row) => {
+  const sessions = parseInt(row.metricValues[0].value) || 0;
+  const avgDuration = parseFloat(row.metricValues[3].value) || 0;
+  return sum + (avgDuration * sessions);
+}, 0);
+const totalSessions = totalsResponse.rows.reduce((sum, row) => {
+  return sum + (parseInt(row.metricValues[0].value) || 0);
+}, 0);
+return weightedDuration / (totalSessions || 1);
+```
+
+### ✅ 修改内容
+
+#### 文件：src/components/TrafficSourceAnalysis.vue
+
+**修改位置**：第534-542行，`avgDuration` 计算逻辑
+
+**修改前**：
+```javascript
+// 加权平均会话时长 - averageSessionDuration 已经是秒，按会话数加权
+avgDuration: (() => {
+  const weightedDuration = totalsResponse.rows.reduce((sum, row) => {
+    const sessions = parseInt(row.metricValues[0].value) || 0;
+    const avgDuration = parseFloat(row.metricValues[3].value) || 0;
+    return sum + (avgDuration * sessions);
+  }, 0);
+  const totalSessions = totalsResponse.rows.reduce((sum, row) => {
+    return sum + (parseInt(row.metricValues[0].value) || 0);
+  }, 0);
+  return weightedDuration / (totalSessions || 1);
+})()
+```
+
+**修改后**：
+```javascript
+// 加权平均会话时长 - averageSessionDuration 已经是秒，按会话数加权计算
+avgDuration: (() => {
+  const weightedDuration = totalsResponse.rows.reduce((sum, row) => {
+    const sessions = parseInt(row.metricValues[0].value) || 0;
+    const avgDuration = parseFloat(row.metricValues[3].value) || 0;
+    return sum + avgDuration * sessions; // 按会话数加权
+  }, 0);
+  return weightedDuration / (totalVisits || 1); // 除以总会话数
+})()
+```
+
+### 🎯 修改说明
+
+1. **简化计算逻辑**：移除了单独的 `totalSessions` 计算，直接使用已计算的 `totalVisits`
+2. **保持计算方式**：实际上访问来源分析仍然按会话数加权，这是合理的
+3. **代码优化**：减少重复计算，提高代码可读性
+
+### 📝 二次修改：表格底部总计行显示修正
+
+**修改时间**：2024年12月19日 (同日二次修改)
+
+**问题**：用户指出表格底部应该显示"总计"，只有平均访问时长这一列显示平均值
+
+**修改位置**：第732-778行，`getSummaries` 函数
+
+**修改前**：
+```javascript
+if (index === 0) {
+  sums[index] = '平均'  // ❌ 错误：显示"平均"
+  return
+}
+```
+
+**修改后**：
+```javascript
+if (index === 0) {
+  sums[index] = '总计'  // ✅ 正确：显示"总计"
+  return
+}
+```
+
+### 📝 技术原理
+
+访问来源分析和页面分析虽然都是"加权平均"，但权重标准不同：
+- **页面分析**：按页面浏览量加权（因为分析的是页面维度）
+- **访问来源分析**：按会话数加权（因为分析的是流量来源维度）
+
+这种差异是合理的，因为两个分析维度不同。
+
+**表格底部总计行逻辑**：
+- 第一列：显示"总计"
+- 数值列（访问次数、用户数、加购、结账）：显示总计值
+- 平均访问时长列：显示加权平均值
+- 跳出率列：显示加权平均值（虽然是平均计算，但在UI上作为总计行的一部分显示）
+
+### 📝 三次修改：修正GA4指标使用错误
+
+**修改时间**：2024年12月19日 (同日三次修改)
+
+**问题根源**：发现访问来源分析平均时长显示异常（显示2万多小时），经调试发现使用了错误的GA4指标
+
+**问题分析**：
+- 原代码使用 `userEngagementDuration`（用户参与总时长）
+- 错误地当作 `averageSessionDuration`（平均会话时长）处理
+- `userEngagementDuration` 是总时长，可能以毫秒为单位
+- `averageSessionDuration` 是平均时长，以秒为单位
+
+**修改位置**：
+1. 第455行：`totalsRequest.metrics` 中的指标
+2. 第399行：`baseRequest.metrics` 中的指标  
+3. 第358行：排序字段映射
+
+**修改前**：
+```javascript
+{ name: 'userEngagementDuration' }, // 错误：总时长
+return { metric: { metricName: 'userEngagementDuration' } } // 错误
+```
+
+**修改后**：
+```javascript
+{ name: 'averageSessionDuration' }, // 正确：平均时长（秒）
+return { metric: { metricName: 'averageSessionDuration' } } // 正确
+```
+
+**技术说明**：
+- `userEngagementDuration`：用户参与总时长，需要除以会话数得到平均值
+- `averageSessionDuration`：GA4已计算好的平均会话时长，单位为秒
+- 使用正确指标后，加权平均计算逻辑保持不变
+
+---
+**访问来源分析平均访问时长计算方式修改完成** ✅
+
 ---
 检查完成 ✅

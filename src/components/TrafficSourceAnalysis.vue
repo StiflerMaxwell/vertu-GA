@@ -355,7 +355,7 @@ const getSourceOrderByField = (prop) => {
     case 'bounceRate':
       return { metric: { metricName: 'bounceRate' } }
     case 'avgDuration':
-      return { metric: { metricName: 'userEngagementDuration' } }
+      return { metric: { metricName: 'averageSessionDuration' } }
     case 'source':
       return { dimension: { dimensionName: 'firstUserSource' } }
     case 'medium':
@@ -452,7 +452,7 @@ async function fetchData() {
         { name: 'sessions' },
         { name: 'activeUsers' },
         { name: 'bounceRate' },
-        { name: 'userEngagementDuration' }, // 用户参与时长（总时长）
+        { name: 'averageSessionDuration' }, // 平均会话时长（秒）
         { name: 'addToCarts' },
         { name: 'checkouts' }
       ]
@@ -531,17 +531,14 @@ async function fetchData() {
           const rate = parseFloat(row.metricValues[2].value) || 0;
           return sum + (rate * sessions);
         }, 0) / (totalVisits || 1),
-        // 加权平均会话时长 - averageSessionDuration 已经是秒，按会话数加权
+        // 加权平均会话时长 - averageSessionDuration 已经是秒，按会话数加权计算
         avgDuration: (() => {
-          const weightedDuration = totalsResponse.rows.reduce((sum, row) => {
+          const totalDurationSeconds = totalsResponse.rows.reduce((sum, row) => {
             const sessions = parseInt(row.metricValues[0].value) || 0;
             const avgDuration = parseFloat(row.metricValues[3].value) || 0; // averageSessionDuration 已经是秒
-            return sum + (avgDuration * sessions);
+            return sum + avgDuration * sessions; // 总时长 = 平均时长 × 会话数
           }, 0);
-          const totalSessions = totalsResponse.rows.reduce((sum, row) => {
-            return sum + (parseInt(row.metricValues[0].value) || 0); // 累加总会话数
-          }, 0);
-          return weightedDuration / (totalSessions || 1); // 加权平均
+          return totalDurationSeconds / (totalVisits || 1); // 总时长 ÷ 总会话数 = 整体平均时长
         })(),
         addToCarts: totalsResponse.rows.reduce((sum, row) => sum + (parseInt(row.metricValues[4].value) || 0), 0),
         checkouts: totalsResponse.rows.reduce((sum, row) => sum + (parseInt(row.metricValues[5].value) || 0), 0)
@@ -732,7 +729,7 @@ watch(searchKeyword, () => {
   handleSearch()
 })
 
-// 修改汇总方法，确保正确显示数据
+// 修改汇总方法，第一列显示"总计"，只有平均访问时长显示平均值，其他列显示总计值
 const getSummaries = (param) => {
   const { columns } = param
   const sums = []
@@ -760,7 +757,7 @@ const getSummaries = (param) => {
         sums[index] = formatPercent(totals.value.bounceRate || 0)
         break
       case 'avgDuration':
-        sums[index] = formatDuration(totals.value.avgDuration || 0)
+        sums[index] = formatDuration(totals.value.avgDuration || 0) // 这一列显示平均值
         break
       case 'addToCarts':
         sums[index] = formatNumber(totals.value.addToCarts || 0)
